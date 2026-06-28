@@ -1,8 +1,9 @@
 import { useRouter } from 'expo-router';
 import { ArrowDownUp, Bell, Search, SlidersHorizontal, X } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Pressable,
   RefreshControl,
@@ -14,6 +15,10 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import { ArchiveFilterModal } from '@/components/announcements/ArchiveFilterModal';
+import {
+  ArchiveAiSearchButton,
+  ArchiveAiSearchModal,
+} from '@/components/announcements/ArchiveAiSearchModal';
 import { ArchiveSubcategoryChips } from '@/components/announcements/ArchiveSubcategoryChips';
 import { ListingCard } from '@/components/announcements/ListingCard';
 import { SponsoredAdCard } from '@/components/announcements/SponsoredAdCard';
@@ -22,6 +27,7 @@ import { ScreenContainer } from '@/components/layout/ScreenContainer';
 import { ScreenHeader } from '@/components/layout/ScreenHeader';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { ARCHIVE_SORT_OPTIONS } from '@/constants/archive';
+import { useFavorites } from '@/contexts/FavoritesContext';
 import { countActiveFilters } from '@/lib/announcements/archiveFilterState';
 import { getDeviceLocation } from '@/lib/location/getDeviceLocation';
 import { useArchiveList } from '@/hooks/useArchiveList';
@@ -31,8 +37,10 @@ import { colors, radii, spacing, typography } from '@/theme';
 export default function ListScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const { isFavorite, toggleFavorite } = useFavorites();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
+  const [aiSearchOpen, setAiSearchOpen] = useState(false);
 
   const {
     feedItems,
@@ -57,6 +65,12 @@ export default function ListScreen() {
   } = useArchiveList();
 
   const activeFilterCount = useMemo(() => countActiveFilters(filters), [filters]);
+  const currencySymbol = useMemo(() => {
+    const currency = config?.currencies.find(
+      (item) => String(item.id) === String(filters.currency_id),
+    );
+    return currency?.symbol ?? '$';
+  }, [config?.currencies, filters.currency_id]);
   const sortLabel =
     t(ARCHIVE_SORT_OPTIONS.find((option) => option.value === sort)?.labelKey ?? 'archive.sort.default');
 
@@ -66,6 +80,16 @@ export default function ListScreen() {
       params: { id: String(announcement.id) },
     });
   }
+
+  const handleToggleFavorite = useCallback(
+    async (announcement: Announcement) => {
+      const succeeded = await toggleFavorite(announcement);
+      if (!succeeded) {
+        Alert.alert(t('mobile.errors.favorite_toggle_failed'));
+      }
+    },
+    [toggleFavorite, t],
+  );
 
   return (
     <ScreenContainer scrollable={false} padded={false}>
@@ -82,6 +106,7 @@ export default function ListScreen() {
         />
 
         <View style={styles.searchRow}>
+          <ArchiveAiSearchButton onPress={() => setAiSearchOpen(true)} />
           <View style={styles.searchInputWrap}>
             <Search color={colors.textSubtle} size={16} />
             <TextInput
@@ -152,7 +177,12 @@ export default function ListScreen() {
             item.type === 'ad' ? (
               <SponsoredAdCard ad={item.data} />
             ) : (
-              <ListingCard announcement={item.data} onPress={openDetail} />
+              <ListingCard
+                announcement={item.data}
+                isFavorite={isFavorite(item.data)}
+                onPress={openDetail}
+                onToggleFavorite={handleToggleFavorite}
+              />
             )
           }
           ItemSeparatorComponent={() => <View style={styles.listSeparator} />}
@@ -202,6 +232,15 @@ export default function ListScreen() {
         onClose={() => setSortOpen(false)}
         onChange={setSort}
         onRequestNearest={() => requestNearestSort(getDeviceLocation)}
+      />
+
+      <ArchiveAiSearchModal
+        visible={aiSearchOpen}
+        countryId={filters.country_id}
+        currencyId={filters.currency_id}
+        currencySymbol={currencySymbol}
+        onClose={() => setAiSearchOpen(false)}
+        onOpenListing={openDetail}
       />
     </ScreenContainer>
   );

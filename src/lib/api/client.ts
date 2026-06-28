@@ -82,6 +82,10 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
   if (!response.ok) {
     const errorPayload = payload as ApiErrorResponse | undefined;
 
+    if (__DEV__) {
+      console.warn(`[api] ${response.status} ${rest.method ?? 'GET'} ${url}`, errorPayload?.message);
+    }
+
     throw new ApiClientError(
       errorPayload?.message ?? response.statusText,
       response.status,

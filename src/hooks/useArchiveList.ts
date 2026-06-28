@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { useAuth } from '@/contexts/AuthContext';
 import i18n from '@/i18n';
 
 import {
@@ -55,6 +56,7 @@ const emptyMeta: PaginationMeta = {
 };
 
 export function useArchiveList(): UseArchiveListResult {
+  const { isAuthenticated } = useAuth();
   const [config, setConfig] = useState<ArchiveConfig | null>(null);
   const [filters, setFilters] = useState<ArchiveFilterState>(() => buildInitialArchiveFilters());
   const [sort, setSortState] = useState<ArchiveSort>('default');
@@ -112,6 +114,7 @@ export function useArchiveList(): UseArchiveListResult {
           page: pageNum,
           sort: nextSort,
           location: nextSort === 'nearest' ? location : null,
+          auth: isAuthenticated,
         });
 
         setMeta(result.meta);
@@ -128,7 +131,7 @@ export function useArchiveList(): UseArchiveListResult {
         setRefreshing(false);
       }
     },
-    [],
+    [isAuthenticated],
   );
 
   useEffect(() => {

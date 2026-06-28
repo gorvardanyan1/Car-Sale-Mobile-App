@@ -112,12 +112,15 @@ export function ListingCard({
         </View>
 
         <Pressable
-          onPress={() => onToggleFavorite?.(announcement)}
+          onPress={(event) => {
+            event.stopPropagation();
+            onToggleFavorite?.(announcement);
+          }}
           style={[styles.favButton, isFavorite && styles.favButtonActive]}
           hitSlop={8}
         >
           <Heart
-            color={isFavorite ? colors.white : colors.textSecondary}
+            color={isFavorite ? colors.white : colors.border}
             size={16}
             fill={isFavorite ? colors.white : 'transparent'}
           />

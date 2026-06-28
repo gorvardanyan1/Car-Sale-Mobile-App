@@ -6,6 +6,7 @@ import { StyleSheet } from 'react-native';
 import { AuthGate } from '@/components/auth/AuthGate';
 import { I18nProvider } from '@/components/i18n/I18nProvider';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { FavoritesProvider } from '@/contexts/FavoritesContext';
 import { colors } from '@/theme';
 
 export default function RootLayout() {
@@ -13,15 +14,17 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.root}>
       <I18nProvider>
         <AuthProvider>
-          <AuthGate>
-            <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
-              <Stack.Screen name="index" />
-              <Stack.Screen name="(auth)" />
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="announcement/[id]" />
-            </Stack>
-          </AuthGate>
-          <StatusBar style="light" />
+          <FavoritesProvider>
+            <AuthGate>
+              <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen name="(auth)" />
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="announcement/[id]" />
+              </Stack>
+            </AuthGate>
+            <StatusBar style="light" />
+          </FavoritesProvider>
         </AuthProvider>
       </I18nProvider>
     </GestureHandlerRootView>

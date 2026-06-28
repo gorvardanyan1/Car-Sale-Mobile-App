@@ -58,10 +58,66 @@ describe('announcementService', () => {
 
     expect(apiFetch).toHaveBeenCalledWith(
       expect.stringContaining('/announcements/archive?'),
+      { auth: false },
     );
     expect(result.announcements).toHaveLength(1);
     expect(result.meta.total).toBe(6);
     expect(result.ads).toEqual([{ id: 1, title: 'Promo', link_url: 'https://example.com' }]);
     expect(result.adsInterval).toBe(4);
+  });
+
+  it('fetchFavorites requests authenticated favorites list', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({
+      data: [{ id: 5 }],
+      meta: { current_page: 1, last_page: 1, per_page: 15, total: 1 },
+    });
+
+    const result = await announcementService.fetchFavorites({ page: 1 });
+
+    expect(apiFetch).toHaveBeenCalledWith(
+      '/announcements/favorites?page=1&per_page=15',
+      { auth: true },
+    );
+    expect(result.announcements).toEqual([{ id: 5 }]);
+    expect(result.meta.total).toBe(1);
+  });
+
+  it('favoriteAnnouncement posts with auth', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ data: { favorited: true } });
+
+    await announcementService.favoriteAnnouncement(12);
+
+    expect(apiFetch).toHaveBeenCalledWith('/announcements/12/favorite', {
+      method: 'POST',
+      auth: true,
+    });
+  });
+
+  it('unfavoriteAnnouncement deletes with auth', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ data: { favorited: false } });
+
+    await announcementService.unfavoriteAnnouncement(12);
+
+    expect(apiFetch).toHaveBeenCalledWith('/announcements/12/favorite', {
+      method: 'DELETE',
+      auth: true,
+    });
+  });
+
+  it('fetchAllFavoriteIds paginates through favorites', async () => {
+    vi.mocked(apiFetch)
+      .mockResolvedValueOnce({
+        data: [{ id: 1 }, { id: 2 }],
+        meta: { current_page: 1, last_page: 2, per_page: 60, total: 3 },
+      })
+      .mockResolvedValueOnce({
+        data: [{ id: 3 }],
+        meta: { current_page: 2, last_page: 2, per_page: 60, total: 3 },
+      });
+
+    const ids = await announcementService.fetchAllFavoriteIds();
+
+    expect(ids).toEqual([1, 2, 3]);
+    expect(apiFetch).toHaveBeenCalledTimes(2);
   });
 });

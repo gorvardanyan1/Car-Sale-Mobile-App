@@ -23,6 +23,7 @@ type FetchArchiveOptions = {
   page?: number;
   sort?: ArchiveSort;
   location?: UserLocation | null;
+  auth?: boolean;
 };
 
 export async function fetchArchive({
@@ -30,9 +31,12 @@ export async function fetchArchive({
   page = 1,
   sort = 'default',
   location = null,
+  auth = false,
 }: FetchArchiveOptions): Promise<ArchiveListResponse> {
   const query = buildArchiveQueryParams(filters, { page, sort, location });
-  const response = await apiFetch<ApiResponse<Announcement[]>>(`/announcements/archive?${query}`);
+  const response = await apiFetch<ApiResponse<Announcement[]>>(`/announcements/archive?${query}`, {
+    auth,
+  });
 
   const meta = (response.meta ?? {}) as PaginationMeta;
 
@@ -86,4 +90,67 @@ export async function fetchPlaces({
 export async function fetchAnnouncementDetail(id: number): Promise<Record<string, unknown>> {
   const response = await apiFetch<ApiResponse<Record<string, unknown>>>(`/announcements/${id}`);
   return response.data;
+}
+
+type FetchFavoritesOptions = {
+  page?: number;
+  perPage?: number;
+};
+
+export async function fetchFavorites({
+  page = 1,
+  perPage = 15,
+}: FetchFavoritesOptions = {}): Promise<ArchiveListResponse> {
+  const params = new URLSearchParams({
+    page: String(page),
+    per_page: String(perPage),
+  });
+
+  const response = await apiFetch<ApiResponse<Announcement[]>>(
+    `/announcements/favorites?${params.toString()}`,
+    { auth: true },
+  );
+
+  const meta = (response.meta ?? {}) as PaginationMeta;
+
+  return {
+    announcements: response.data ?? [],
+    meta: {
+      current_page: meta.current_page ?? page,
+      last_page: meta.last_page ?? 1,
+      per_page: meta.per_page ?? perPage,
+      total: meta.total ?? response.data?.length ?? 0,
+    },
+    ads: [],
+    adsInterval: 4,
+  };
+}
+
+export async function favoriteAnnouncement(id: number): Promise<void> {
+  await apiFetch<ApiResponse<{ favorited: boolean }>>(`/announcements/${id}/favorite`, {
+    method: 'POST',
+    auth: true,
+  });
+}
+
+export async function unfavoriteAnnouncement(id: number): Promise<void> {
+  await apiFetch<ApiResponse<{ favorited: boolean }>>(`/announcements/${id}/favorite`, {
+    method: 'DELETE',
+    auth: true,
+  });
+}
+
+export async function fetchAllFavoriteIds(): Promise<number[]> {
+  const ids: number[] = [];
+  let page = 1;
+  let lastPage = 1;
+
+  do {
+    const result = await fetchFavorites({ page, perPage: 60 });
+    ids.push(...result.announcements.map((announcement) => announcement.id));
+    lastPage = result.meta.last_page;
+    page += 1;
+  } while (page <= lastPage);
+
+  return ids;
 }
