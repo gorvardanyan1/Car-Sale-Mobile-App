@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Heart } from 'lucide-react-native';
 import { useCallback } from 'react';
 import {
@@ -19,6 +19,7 @@ import { ScreenHeader } from '@/components/layout/ScreenHeader';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { useFavoritesList } from '@/hooks/useFavoritesList';
+import { useLocalViews } from '@/hooks/useLocalViews';
 import type { Announcement } from '@/types/announcement';
 import { colors, spacing, typography } from '@/theme';
 
@@ -26,6 +27,7 @@ export default function FavoritesScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { isFavorite, toggleFavorite, refreshFavoriteIds } = useFavorites();
+  const { isViewed, refresh: refreshLocalViews } = useLocalViews();
   const {
     announcements,
     meta,
@@ -41,8 +43,15 @@ export default function FavoritesScreen() {
 
   const handleRefresh = useCallback(() => {
     void refreshFavoriteIds();
+    void refreshLocalViews();
     refresh();
-  }, [refresh, refreshFavoriteIds]);
+  }, [refresh, refreshFavoriteIds, refreshLocalViews]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshLocalViews();
+    }, [refreshLocalViews]),
+  );
 
   function openDetail(announcement: Announcement) {
     router.push({
@@ -104,6 +113,7 @@ export default function FavoritesScreen() {
           renderItem={({ item }) => (
             <ListingCard
               announcement={item}
+              viewed={isViewed(item.id)}
               isFavorite={isFavorite(item)}
               onPress={openDetail}
               onToggleFavorite={handleToggleFavorite}

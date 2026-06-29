@@ -9,6 +9,7 @@ import {
   View,
 } from 'react-native';
 
+import { FieldLabel } from '@/components/ui/FieldLabel';
 import { colors, radii, typography } from '@/theme';
 
 type TextFieldProps = TextInputProps & {
@@ -16,6 +17,8 @@ type TextFieldProps = TextInputProps & {
   error?: string;
   secureToggle?: boolean;
   rightSlot?: ReactNode;
+  required?: boolean;
+  showOptionalHint?: boolean;
 };
 
 export function TextField({
@@ -24,6 +27,8 @@ export function TextField({
   secureToggle = false,
   rightSlot,
   secureTextEntry,
+  required = false,
+  showOptionalHint = true,
   style,
   ...props
 }: TextFieldProps) {
@@ -31,7 +36,7 @@ export function TextField({
 
   return (
     <View style={styles.wrapper}>
-      <Text style={styles.label}>{label}</Text>
+      <FieldLabel label={label} required={required} showOptionalHint={showOptionalHint} />
       <View style={[styles.inputRow, error ? styles.inputRowError : null]}>
         <TextInput
           {...props}

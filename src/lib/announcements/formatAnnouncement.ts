@@ -1,7 +1,22 @@
 import { config } from '@/constants/config';
-import type { Announcement } from '@/types/announcement';
+
+import type { Announcement, CarFeatureDefinition } from '@/types/announcement';
 
 const storageBaseUrl = config.apiUrl.replace(/\/api\/v1$/, '');
+
+export function resolveStorageImageUrl(path: string): string {
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+
+  const normalized = path.replace(/^\/+/, '');
+
+  if (normalized.startsWith('storage/')) {
+    return `${storageBaseUrl}/${normalized}`;
+  }
+
+  return `${storageBaseUrl}/storage/${normalized}`;
+}
 
 export function formatAnnouncementPrice(announcement: Announcement): string {
   const price = announcement.price ?? '';
@@ -23,17 +38,7 @@ export function getAnnouncementImageUrl(announcement: Announcement): string | nu
     return null;
   }
 
-  if (path.startsWith('http://') || path.startsWith('https://')) {
-    return path;
-  }
-
-  const normalized = path.replace(/^\/+/, '');
-
-  if (normalized.startsWith('storage/')) {
-    return `${storageBaseUrl}/${normalized}`;
-  }
-
-  return `${storageBaseUrl}/storage/${normalized}`;
+  return resolveStorageImageUrl(path);
 }
 
 export function getAnnouncementTitle(announcement: Announcement): string {
@@ -101,4 +106,98 @@ export function getListingSubtitle(announcement: Announcement, location?: string
   ].filter(Boolean);
 
   return parts.join(' · ');
+}
+
+export function getAnnouncementLocation(announcement: Announcement): string {
+  const place = announcement.place?.place;
+  const country = announcement.country?.country;
+
+  return [place, country].filter(Boolean).join(', ');
+}
+
+export function getAnnouncementViewsCount(announcement: Announcement): number {
+  return announcement.views_count ?? announcement.viewsCount ?? 0;
+}
+
+export function getAnnouncementLikesCount(announcement: Announcement): number {
+  return announcement.likes_count ?? announcement.likedQuantity ?? 0;
+}
+
+export function getAnnouncementShareUrl(announcementId: number): string {
+  return `${storageBaseUrl}/announcements/view/${announcementId}`;
+}
+
+export function getAnnouncementDescription(announcement: Announcement): string {
+  return (
+    announcement.display_description?.trim() ||
+    announcement.description?.trim() ||
+    ''
+  );
+}
+
+export function getAnnouncementGalleryUrls(announcement: Announcement): string[] {
+  const urls: string[] = [];
+  const main = getAnnouncementImageUrl(announcement);
+
+  if (main) {
+    urls.push(main);
+  }
+
+  if (!announcement.additional_images_path) {
+    return urls;
+  }
+
+  try {
+    const additional = JSON.parse(announcement.additional_images_path) as unknown;
+
+    if (!Array.isArray(additional)) {
+      return urls;
+    }
+
+    for (const item of additional) {
+      if (typeof item !== 'string' || !item.trim()) {
+        continue;
+      }
+
+      const url = resolveStorageImageUrl(item);
+      if (!urls.includes(url)) {
+        urls.push(url);
+      }
+    }
+  } catch {
+    // Ignore invalid additional image payloads.
+  }
+
+  return urls;
+}
+
+export function getAnnouncementFeatureLabels(
+  announcement: Announcement,
+  carFeatures: CarFeatureDefinition[] = [],
+  language = 'en',
+): string[] {
+  let parsed: Record<string, unknown> = {};
+
+  try {
+    parsed = JSON.parse(announcement.feature || '{}') as Record<string, unknown>;
+  } catch {
+    parsed = {};
+  }
+
+  const keys = Object.entries(parsed)
+    .filter(([key, value]) => key.startsWith('feature_') && value === 'on')
+    .map(([key]) => key.replace('feature_', ''));
+
+  const currentLang = language || 'en';
+
+  return keys.map((featureKey) => {
+    const definition = carFeatures.find((feature) => feature.key === featureKey);
+    const localizedKey = `name_${currentLang}` as keyof CarFeatureDefinition;
+
+    return (
+      (definition?.[localizedKey] as string | undefined) ||
+      definition?.name_en ||
+      featureKey.replace(/_/g, ' ')
+    );
+  });
 }

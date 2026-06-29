@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 
+import { FieldLabel } from '@/components/ui/FieldLabel';
 import { colors, radii, spacing, typography } from '@/theme';
 
 export type SelectOption<T extends string | number = string> = {
@@ -26,6 +27,8 @@ type SelectFieldProps<T extends string | number = string> = {
   searchPlaceholder?: string;
   searchable?: boolean;
   disabled?: boolean;
+  required?: boolean;
+  showOptionalHint?: boolean;
 };
 
 export function SelectField<T extends string | number = string>({
@@ -37,6 +40,8 @@ export function SelectField<T extends string | number = string>({
   searchPlaceholder = 'Search…',
   searchable = false,
   disabled = false,
+  required = false,
+  showOptionalHint = true,
 }: SelectFieldProps<T>) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
@@ -48,7 +53,7 @@ export function SelectField<T extends string | number = string>({
 
   return (
     <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
+      <FieldLabel label={label} required={required} showOptionalHint={showOptionalHint} />
       <Pressable
         disabled={disabled}
         onPress={() => setOpen(true)}
@@ -108,12 +113,22 @@ type NumberFieldProps = {
   onChange: (value: string) => void;
   placeholder?: string;
   suffix?: ReactNode;
+  required?: boolean;
+  showOptionalHint?: boolean;
 };
 
-export function NumberField({ label, value, onChange, placeholder, suffix }: NumberFieldProps) {
+export function NumberField({
+  label,
+  value,
+  onChange,
+  placeholder,
+  suffix,
+  required = false,
+  showOptionalHint = true,
+}: NumberFieldProps) {
   return (
     <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
+      <FieldLabel label={label} required={required} showOptionalHint={showOptionalHint} />
       <View style={styles.numberRow}>
         <TextInput
           value={value !== undefined && value !== null ? String(value) : ''}

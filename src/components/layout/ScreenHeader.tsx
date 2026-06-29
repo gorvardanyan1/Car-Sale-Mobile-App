@@ -1,8 +1,10 @@
-import { useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
+import type { Href } from 'expo-router';
 import { ReactNode } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useTranslation } from 'react-i18next';
 
+import { useSafeBack } from '@/lib/navigation/useSafeBack';
 import { colors, spacing, typography } from '@/theme';
 
 type ScreenHeaderProps = {
@@ -11,17 +13,29 @@ type ScreenHeaderProps = {
   greeting?: string;
   rightSlot?: ReactNode;
   showBack?: boolean;
+  backFallback?: Href;
+  onBackPress?: () => void;
 };
 
-export function ScreenHeader({ title, subtitle, greeting, rightSlot, showBack = false }: ScreenHeaderProps) {
-  const router = useRouter();
+export function ScreenHeader({
+  title,
+  subtitle,
+  greeting,
+  rightSlot,
+  showBack = false,
+  backFallback,
+  onBackPress,
+}: ScreenHeaderProps) {
+  const { t } = useTranslation();
+  const safeBack = useSafeBack(backFallback);
+  const handleBack = onBackPress ?? safeBack;
 
   return (
     <View style={styles.container}>
       {showBack ? (
-        <Pressable onPress={() => router.back()} style={styles.backButton} hitSlop={8}>
+        <Pressable onPress={handleBack} style={styles.backButton} hitSlop={8}>
           <ChevronLeft color={colors.textSecondary} size={22} />
-          <Text style={styles.backText}>Back</Text>
+          <Text style={styles.backText}>{t('common.back')}</Text>
         </Pressable>
       ) : null}
       <View style={styles.row}>

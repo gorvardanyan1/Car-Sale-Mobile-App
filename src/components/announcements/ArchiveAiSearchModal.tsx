@@ -18,6 +18,7 @@ import { ListingCard } from '@/components/announcements/ListingCard';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { useFavorites } from '@/contexts/FavoritesContext';
 import { buildArchiveAiFilterChips } from '@/lib/announcements/buildArchiveAiFilterChips';
+import { useLocalViews } from '@/hooks/useLocalViews';
 import {
   ArchiveAiSearchApiError,
   fetchArchiveAiSearch,
@@ -58,6 +59,7 @@ export function ArchiveAiSearchModal({
 }: ArchiveAiSearchModalProps) {
   const { t } = useTranslation();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { isViewed } = useLocalViews();
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -275,6 +277,7 @@ export function ArchiveAiSearchModal({
                 <View key={announcement.id} style={styles.resultCard}>
                   <ListingCard
                     announcement={announcement}
+                    viewed={isViewed(announcement.id)}
                     isFavorite={isFavorite(announcement)}
                     onPress={onOpenListing}
                     onToggleFavorite={(item) => void toggleFavorite(item)}

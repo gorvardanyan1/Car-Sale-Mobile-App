@@ -6,15 +6,16 @@ import { useTranslation } from 'react-i18next';
 import {
   formatAnnouncementPrice,
   formatDriveType,
-  formatEngineCapacity,
   formatHorsepower,
   formatTransmission,
   getAnnouncementImageUrl,
   getAnnouncementTitle,
+  getAnnouncementViewsCount,
   getDealerName,
   getListingSubtitle,
   isVerifiedDealerListing,
 } from '@/lib/announcements/formatAnnouncement';
+import { formatEngineTypeLabel } from '@/lib/announcements/engineType';
 import type { Announcement } from '@/types/announcement';
 import { colors, gradients, radii, spacing, typography } from '@/theme';
 
@@ -46,7 +47,8 @@ export function ListingCard({
   const specs = [
     {
       icon: <Fuel color={colors.primaryLight} size={14} />,
-      label: formatEngineCapacity(announcement.engine_capacity),
+      label: formatEngineTypeLabel(t, announcement.engine_type),
+      testID: 'listing-engine-type',
     },
     {
       icon: <Car color={colors.primaryLight} size={14} />,
@@ -103,7 +105,7 @@ export function ListingCard({
         <View style={styles.bottomStats}>
           <View style={styles.statChip}>
             <Eye color={colors.white} size={12} />
-            <Text style={styles.statText}>{announcement.views_count ?? 0}</Text>
+            <Text style={styles.statText}>{getAnnouncementViewsCount(announcement)}</Text>
           </View>
           <View style={styles.statChip}>
             <Heart color={colors.white} size={12} />
@@ -147,7 +149,7 @@ export function ListingCard({
 
         <View style={styles.specsGrid}>
           {specs.map((spec, index) => (
-            <View key={index} style={styles.specItem}>
+            <View key={index} style={styles.specItem} testID={spec.testID}>
               {spec.icon}
               <Text style={styles.specLabel} numberOfLines={1}>
                 {spec.label}

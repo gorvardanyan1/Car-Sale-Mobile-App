@@ -9,13 +9,9 @@ type I18nProviderProps = {
 };
 
 export function I18nProvider({ children }: I18nProviderProps) {
-  const [ready, setReady] = useState(i18n.isInitialized);
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (i18n.isInitialized) {
-      return;
-    }
-
     let cancelled = false;
 
     initI18n()
