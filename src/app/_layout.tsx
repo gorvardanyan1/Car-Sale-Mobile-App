@@ -28,6 +28,7 @@ export default function RootLayout() {
                   <Stack.Screen name="(auth)" />
                   <Stack.Screen name="(tabs)" />
                   <Stack.Screen name="announcement/[id]" />
+                  <Stack.Screen name="dealers" />
                   <Stack.Screen name="settings" />
                   </Stack>
                   <StatusBar style="light" />

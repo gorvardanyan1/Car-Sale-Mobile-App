@@ -7,6 +7,7 @@ import { AuthScreenLayout } from '@/components/auth/AuthScreenLayout';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { TextField } from '@/components/ui/TextField';
 import { useAuth } from '@/contexts/AuthContext';
+import { useMobileAuthConfig } from '@/hooks/useMobileAuthConfig';
 import { firstFieldError, getErrorMessage, mapApiErrors } from '@/lib/api/errors';
 import { colors, spacing, typography } from '@/theme';
 import type { FieldErrors } from '@/types';
@@ -14,6 +15,7 @@ import type { FieldErrors } from '@/types';
 export default function LoginScreen() {
   const { signIn } = useAuth();
   const { t } = useTranslation();
+  const { dealerAuthEnabled } = useMobileAuthConfig();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
@@ -63,6 +65,10 @@ export default function LoginScreen() {
       </View>
 
       <View style={styles.form}>
+        {!dealerAuthEnabled ? (
+          <Text style={styles.dealerWebHint}>{t('mobile.auth.dealer_web_only')}</Text>
+        ) : null}
+
         <TextField
           label={t('auth.email_address')}
           value={email}
@@ -127,6 +133,12 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: spacing.md,
+  },
+  dealerWebHint: {
+    ...typography.caption,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 18,
   },
   formError: {
     ...typography.caption,
