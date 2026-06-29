@@ -21,9 +21,30 @@ function resolveDeviceLanguage(): SupportedLanguage {
   return isSupportedLanguage(deviceCode) ? deviceCode : 'en';
 }
 
+const I18N_INIT_OPTIONS = {
+  fallbackLng: 'en' as const,
+  /** Locale files use flat Laravel-style keys such as `my_announcements.title`. */
+  keySeparator: false as const,
+  nsSeparator: false as const,
+  interpolation: { escapeValue: false },
+  compatibilityJSON: 'v4' as const,
+  react: { useSuspense: false },
+};
+
+function syncResourceBundles(): void {
+  for (const [language, bundle] of Object.entries(resources)) {
+    i18n.addResourceBundle(language, 'translation', bundle.translation, true, true);
+  }
+}
+
 let initPromise: Promise<void> | null = null;
 
 export function initI18n(): Promise<void> {
+  if (i18n.isInitialized) {
+    syncResourceBundles();
+    return Promise.resolve();
+  }
+
   if (initPromise) {
     return initPromise;
   }
@@ -32,20 +53,11 @@ export function initI18n(): Promise<void> {
     const stored = await getStoredLanguage();
     const lng = stored ?? resolveDeviceLanguage();
 
-    if (!i18n.isInitialized) {
-      await i18n.use(initReactI18next).init({
-        resources,
-        lng,
-        fallbackLng: 'en',
-        interpolation: { escapeValue: false },
-        compatibilityJSON: 'v4',
-      });
-      return;
-    }
-
-    if (i18n.language !== lng) {
-      await i18n.changeLanguage(lng);
-    }
+    await i18n.use(initReactI18next).init({
+      ...I18N_INIT_OPTIONS,
+      resources,
+      lng,
+    });
   })();
 
   return initPromise;

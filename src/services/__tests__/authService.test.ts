@@ -2,12 +2,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { apiFetch, setAuthToken } from '@/lib/api/client';
 import { clearStoredToken, getStoredToken, setStoredToken } from '@/lib/auth/tokenStorage';
+import { unregisterStoredPushToken } from '@/lib/notifications/pushTokenStorage';
 import * as authService from '@/services/authService';
 
 vi.mock('@/lib/auth/tokenStorage', () => ({
   getStoredToken: vi.fn(),
   setStoredToken: vi.fn(),
   clearStoredToken: vi.fn(),
+}));
+
+vi.mock('@/lib/notifications/pushTokenStorage', () => ({
+  unregisterStoredPushToken: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock('@/lib/api/client', async () => {
@@ -81,6 +86,7 @@ describe('authService', () => {
 
     await authService.logout();
 
+    expect(unregisterStoredPushToken).toHaveBeenCalled();
     expect(setAuthToken).toHaveBeenCalledWith(null);
     expect(clearStoredToken).toHaveBeenCalled();
   });

@@ -1,6 +1,7 @@
 import { config } from '@/constants/config';
 import { apiFetch, setAuthToken } from '@/lib/api/client';
 import { clearStoredToken, getStoredToken, setStoredToken } from '@/lib/auth/tokenStorage';
+import { unregisterStoredPushToken } from '@/lib/notifications/pushTokenStorage';
 import type {
   ApiResponse,
   AuthCredentials,
@@ -51,6 +52,7 @@ export async function logout(): Promise<void> {
   } catch {
     // Clear local session even when the revoke request fails (offline/network).
   } finally {
+    await unregisterStoredPushToken().catch(() => undefined);
     setAuthToken(null);
     await clearStoredToken();
   }

@@ -2,11 +2,14 @@ import { apiFetch } from '@/lib/api/client';
 import { buildArchiveQueryParams } from '@/lib/announcements/buildArchiveQueryParams';
 import type {
   Announcement,
+  AnnouncementDetailResponse,
   ArchiveConfig,
   ArchiveFilterState,
   ArchiveListResponse,
   ArchiveSort,
   CarModel,
+  MyAnnouncementsMeta,
+  MyAnnouncementsResponse,
   PaginationMeta,
   PlaceOption,
   UserLocation,
@@ -87,8 +90,11 @@ export async function fetchPlaces({
   return response.data ?? [];
 }
 
-export async function fetchAnnouncementDetail(id: number): Promise<Record<string, unknown>> {
-  const response = await apiFetch<ApiResponse<Record<string, unknown>>>(`/announcements/${id}`);
+export async function fetchAnnouncementDetail(id: number): Promise<AnnouncementDetailResponse> {
+  const response = await apiFetch<ApiResponse<AnnouncementDetailResponse>>(`/announcements/${id}`, {
+    auth: true,
+  });
+
   return response.data;
 }
 
@@ -153,4 +159,68 @@ export async function fetchAllFavoriteIds(): Promise<number[]> {
   } while (page <= lastPage);
 
   return ids;
+}
+
+type FetchMyAnnouncementsOptions = {
+  page?: number;
+  perPage?: number;
+  status?: string;
+  sort?: string;
+  search?: string;
+};
+
+export async function fetchMyAnnouncements({
+  page = 1,
+  perPage = 10,
+  status = '',
+  sort = 'newest',
+  search = '',
+}: FetchMyAnnouncementsOptions = {}): Promise<MyAnnouncementsResponse> {
+  const params = new URLSearchParams({
+    page: String(page),
+    per_page: String(perPage),
+    sort,
+  });
+
+  if (status) {
+    params.set('status', status);
+  }
+
+  if (search.trim()) {
+    params.set('search', search.trim());
+  }
+
+  const response = await apiFetch<ApiResponse<Announcement[]> & { meta?: MyAnnouncementsMeta }>(
+    `/my-announcements?${params.toString()}`,
+    { auth: true },
+  );
+
+  const meta = (response.meta ?? {}) as MyAnnouncementsMeta;
+
+  return {
+    announcements: response.data ?? [],
+    meta: {
+      current_page: meta.current_page ?? page,
+      last_page: meta.last_page ?? 1,
+      per_page: meta.per_page ?? perPage,
+      total: meta.total ?? response.data?.length ?? 0,
+      stats: meta.stats,
+      urgent_price_cents: meta.urgent_price_cents,
+      urgent_feature_access: meta.urgent_feature_access,
+    },
+  };
+}
+
+export async function deleteAnnouncement(id: number): Promise<void> {
+  await apiFetch<null>(`/announcements/${id}`, {
+    method: 'DELETE',
+    auth: true,
+  });
+}
+
+export async function markAnnouncementAsSold(id: number): Promise<void> {
+  await apiFetch<ApiResponse<Record<string, unknown>>>(`/announcements/${id}/mark-sold`, {
+    method: 'PATCH',
+    auth: true,
+  });
 }

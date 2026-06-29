@@ -1,5 +1,6 @@
 import {
   Bell,
+  Car,
   ChevronRight,
   CreditCard,
   Globe,
@@ -11,13 +12,16 @@ import {
   Shield,
   User,
 } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { ReactNode, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTranslation } from 'react-i18next';
 
 import { LanguagePickerModal } from '@/components/settings/LanguagePickerModal';
+import { ExpoGoPushBanner } from '@/components/notifications/ExpoGoPushBanner';
 import { useAuth } from '@/contexts/AuthContext';
+import { useWantedSearchUnread } from '@/contexts/WantedSearchUnreadContext';
 import type { SupportedLanguage } from '@/i18n';
 import { getUserDisplayName, getUserInitials } from '@/lib/auth/userDisplay';
 import { getErrorMessage } from '@/lib/api/errors';
@@ -44,7 +48,9 @@ const LANGUAGE_LABEL_KEYS: Record<SupportedLanguage, string> = {
 };
 
 export default function SettingsScreen() {
+  const router = useRouter();
   const { user, signOut } = useAuth();
+  const { totalUnread: wantedSearchUnread } = useWantedSearchUnread();
   const { t, i18n } = useTranslation();
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [signOutError, setSignOutError] = useState<string | null>(null);
@@ -53,18 +59,52 @@ export default function SettingsScreen() {
   const currentLanguage = (i18n.language as SupportedLanguage) || 'en';
   const languageLabel = t(LANGUAGE_LABEL_KEYS[currentLanguage] ?? LANGUAGE_LABEL_KEYS.en);
 
+  const isIndividualUser = user.roles.includes('user');
+
   const sections = useMemo<SettingsSection[]>(
     () => [
       {
         titleKey: 'mobile.settings.account_section',
         items: [
-          { id: 'edit', labelKey: 'mobile.settings.edit_profile', icon: <User color="#60A5FA" size={16} /> },
-          { id: 'password', labelKey: 'mobile.settings.change_password', icon: <Lock color="#C084FC" size={16} /> },
+          {
+            id: 'my-announcements',
+            labelKey: 'user.my_announcements',
+            icon: <Car color="#60A5FA" size={16} />,
+            onPress: () => router.push('/settings/my-announcements'),
+          },
+          ...(isIndividualUser
+            ? [
+                {
+                  id: 'wanted-searches',
+                  labelKey: 'user.wanted_searches',
+                  icon: <Bell color="#FACC15" size={16} />,
+                  badge: wantedSearchUnread > 0 ? String(wantedSearchUnread) : undefined,
+                  onPress: () => router.push('/settings/wanted-searches'),
+                },
+              ]
+            : []),
+          {
+            id: 'edit',
+            labelKey: 'mobile.settings.edit_profile',
+            icon: <User color="#60A5FA" size={16} />,
+            onPress: () => router.push('/settings/edit-profile'),
+          },
+          {
+            id: 'password',
+            labelKey: 'mobile.settings.change_password',
+            icon: <Lock color="#C084FC" size={16} />,
+            onPress: () => router.push('/settings/change-password'),
+          },
+          {
+            id: 'billing',
+            labelKey: 'user.billing',
+            icon: <CreditCard color="#4ADE80" size={16} />,
+            onPress: () => router.push('/settings/billing'),
+          },
           {
             id: 'notifications',
             labelKey: 'mobile.settings.notifications',
             icon: <Bell color="#FACC15" size={16} />,
-            badge: '3',
           },
           {
             id: 'privacy',
@@ -108,7 +148,7 @@ export default function SettingsScreen() {
         ],
       },
     ],
-    [languageLabel],
+    [isIndividualUser, languageLabel, router, wantedSearchUnread],
   );
 
   const handleSignOut = async () => {
@@ -160,6 +200,8 @@ export default function SettingsScreen() {
             ))}
           </View>
         </View>
+
+        <ExpoGoPushBanner />
 
         {sections.map((section) => (
           <View key={section.titleKey} style={styles.section}>

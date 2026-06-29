@@ -1,4 +1,4 @@
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { ArrowDownUp, Bell, Search, SlidersHorizontal, X } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import {
@@ -31,6 +31,7 @@ import { useFavorites } from '@/contexts/FavoritesContext';
 import { countActiveFilters } from '@/lib/announcements/archiveFilterState';
 import { getDeviceLocation } from '@/lib/location/getDeviceLocation';
 import { useArchiveList } from '@/hooks/useArchiveList';
+import { useLocalViews } from '@/hooks/useLocalViews';
 import type { Announcement } from '@/types/announcement';
 import { colors, radii, spacing, typography } from '@/theme';
 
@@ -38,6 +39,7 @@ export default function ListScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const { isFavorite, toggleFavorite } = useFavorites();
+  const { isViewed, refresh: refreshLocalViews } = useLocalViews();
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const [aiSearchOpen, setAiSearchOpen] = useState(false);
@@ -73,6 +75,12 @@ export default function ListScreen() {
   }, [config?.currencies, filters.currency_id]);
   const sortLabel =
     t(ARCHIVE_SORT_OPTIONS.find((option) => option.value === sort)?.labelKey ?? 'archive.sort.default');
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshLocalViews();
+    }, [refreshLocalViews]),
+  );
 
   function openDetail(announcement: Announcement) {
     router.push({
@@ -179,6 +187,7 @@ export default function ListScreen() {
             ) : (
               <ListingCard
                 announcement={item.data}
+                viewed={isViewed(item.data.id)}
                 isFavorite={isFavorite(item.data)}
                 onPress={openDetail}
                 onToggleFavorite={handleToggleFavorite}

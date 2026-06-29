@@ -5,6 +5,8 @@ import {
   formatEngineCapacity,
   formatHorsepower,
   formatTransmission,
+  getAnnouncementFeatureLabels,
+  getAnnouncementGalleryUrls,
   getListingSubtitle,
   isVerifiedDealerListing,
 } from '@/lib/announcements/formatAnnouncement';
@@ -46,5 +48,19 @@ describe('formatAnnouncement helpers', () => {
         user: { id: 2, name: 'John', is_dealer_verified: false },
       }),
     ).toBe(false);
+  });
+
+  it('builds gallery urls and feature labels from API payloads', () => {
+    const announcement = {
+      ...baseAnnouncement,
+      main_image_path: 'storage/cars/main.jpg',
+      additional_images_path: JSON.stringify(['storage/cars/extra.jpg']),
+      feature: JSON.stringify({ feature_sunroof: 'on' }),
+    };
+
+    expect(getAnnouncementGalleryUrls(announcement)).toHaveLength(2);
+    expect(
+      getAnnouncementFeatureLabels(announcement, [{ key: 'sunroof', name_en: 'Sunroof' }]),
+    ).toEqual(['Sunroof']);
   });
 });
