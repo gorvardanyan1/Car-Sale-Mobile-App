@@ -1,157 +1,150 @@
-import { MessageCircle } from 'lucide-react-native';
-import { StyleSheet, Text, View } from 'react-native';
+import { useCallback } from 'react';
+import { Alert, FlatList, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
+import { MessageCircle } from 'lucide-react-native';
 
 import { ScreenContainer } from '@/components/layout/ScreenContainer';
 import { ScreenHeader } from '@/components/layout/ScreenHeader';
-import { colors, radii, spacing, typography } from '@/theme';
-
-const PLACEHOLDER_MESSAGES = [
-  {
-    id: 1,
-    name: 'Ahmed Al-Rashid',
-    car: 'Mercedes-Benz C300',
-    time: '2m ago',
-    lastMsg: 'Is the price negotiable?',
-    unread: 2,
-  },
-  {
-    id: 2,
-    name: 'Sarah Johnson',
-    car: 'BMW 428i Coupe',
-    time: '1h ago',
-    lastMsg: 'Can I schedule a test drive?',
-    unread: 0,
-  },
-];
+import { ConversationListItem } from '@/components/chat/ConversationListItem';
+import { useConversations } from '@/hooks/useConversations';
+import { useChatSocket } from '@/contexts/ChatSocketContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { colors, spacing, typography } from '@/theme';
+import type { ChatConversation } from '@/types/chat';
 
 export default function MessagesScreen() {
   const { t } = useTranslation();
-  const unreadTotal = PLACEHOLDER_MESSAGES.reduce((sum, item) => sum + item.unread, 0);
+  const router = useRouter();
+  const { user } = useAuth();
+  const { totalUnread, connected } = useChatSocket();
+  const { conversations, isLoading, error, refresh, remove } = useConversations();
+
+  const handlePress = useCallback(
+    (conv: ChatConversation) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      router.push({ pathname: '/chat/[id]' as any, params: { id: conv._id } });
+    },
+    [router],
+  );
+
+  const handleLongPress = useCallback(
+    (conv: ChatConversation) => {
+      Alert.alert(
+        t('mobile.chat.delete_title'),
+        t('mobile.chat.delete_confirm'),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+            text: t('common.delete'),
+            style: 'destructive',
+            onPress: () => void remove(conv._id),
+          },
+        ],
+      );
+    },
+    [t, remove],
+  );
+
+  const subtitle = totalUnread > 0
+    ? t('mobile.chat.unread_count', { count: totalUnread })
+    : connected
+      ? t('mobile.chat.connected')
+      : t('mobile.chat.disconnected');
 
   return (
-    <ScreenContainer scrollable padded>
-      <ScreenHeader
-        title={t('mobile.messages.title')}
-        subtitle={t('mobile.messages.unread', { count: unreadTotal })}
-      />
-
-      <View style={styles.list}>
-        {PLACEHOLDER_MESSAGES.map((message) => (
-          <View key={message.id} style={styles.card}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarText}>{message.name.charAt(0)}</Text>
-            </View>
-            <View style={styles.content}>
-              <View style={styles.topRow}>
-                <Text style={styles.name}>{message.name}</Text>
-                <Text style={styles.time}>{message.time}</Text>
-              </View>
-              <Text style={styles.car}>{message.car}</Text>
-              <Text style={styles.preview} numberOfLines={1}>
-                {message.lastMsg}
-              </Text>
-            </View>
-            {message.unread > 0 ? (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{message.unread}</Text>
-              </View>
-            ) : null}
-          </View>
-        ))}
+    <ScreenContainer padded={false}>
+      <View style={styles.header}>
+        <ScreenHeader
+          title={t('mobile.messages.title')}
+          subtitle={subtitle}
+        />
+        {!connected ? <View style={styles.offlineDot} /> : null}
       </View>
 
-      <View style={styles.footerNote}>
-        <MessageCircle color={colors.textDisabled} size={16} />
-        <Text style={styles.footerText}>{t('mobile.messages.integration_note')}</Text>
-      </View>
+      {isLoading ? (
+        <View style={styles.center}>
+          <ActivityIndicator color={colors.primary} size="large" />
+        </View>
+      ) : error ? (
+        <View style={styles.center}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      ) : conversations.length === 0 ? (
+        <View style={styles.empty}>
+          <MessageCircle color={colors.textDisabled} size={48} />
+          <Text style={styles.emptyTitle}>{t('mobile.chat.no_conversations')}</Text>
+          <Text style={styles.emptySubtitle}>{t('mobile.chat.no_conversations_hint')}</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={conversations}
+          keyExtractor={(item) => item._id}
+          renderItem={({ item }) => (
+            <ConversationListItem
+              conversation={item}
+              currentUserId={user?.id ?? null}
+              onPress={() => handlePress(item)}
+              onLongPress={() => handleLongPress(item)}
+            />
+          )}
+          contentContainerStyle={styles.list}
+          ItemSeparatorComponent={() => <View style={styles.separator} />}
+          onRefresh={refresh}
+          refreshing={isLoading}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
     </ScreenContainer>
   );
 }
 
 const styles = StyleSheet.create({
-  list: {
-    gap: spacing.sm,
-    marginTop: spacing.sm,
+  header: {
+    paddingHorizontal: spacing.md,
   },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.cardBorder,
-    borderRadius: radii.button,
-    padding: spacing.md,
-  },
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: radii.pill,
-    backgroundColor: colors.primary,
+  center: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: {
-    color: colors.white,
-    fontWeight: '700',
-    fontSize: 16,
+  errorText: {
+    ...typography.body,
+    color: colors.error,
+    textAlign: 'center',
+    paddingHorizontal: spacing.lg,
   },
-  content: {
+  empty: {
     flex: 1,
-    minWidth: 0,
-  },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: spacing.sm,
+    paddingHorizontal: spacing.lg,
   },
-  name: {
+  emptyTitle: {
     ...typography.sectionTitle,
     color: colors.text,
-    fontSize: 14,
+    textAlign: 'center',
   },
-  time: {
-    ...typography.caption,
-    color: colors.textSubtle,
-  },
-  car: {
-    ...typography.caption,
-    color: colors.primaryLight,
-    fontWeight: '600',
-    marginTop: 2,
-  },
-  preview: {
+  emptySubtitle: {
     ...typography.caption,
     color: colors.textMuted,
-    marginTop: 2,
+    textAlign: 'center',
   },
-  badge: {
-    minWidth: 20,
-    height: 20,
-    borderRadius: radii.pill,
-    backgroundColor: colors.badge,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: 6,
+  list: {
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.xl,
   },
-  badgeText: {
-    color: colors.white,
-    fontSize: 11,
-    fontWeight: '700',
+  separator: {
+    height: spacing.sm,
   },
-  footerNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.lg,
-    padding: spacing.md,
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceMuted,
-  },
-  footerText: {
-    ...typography.caption,
-    color: colors.textSubtle,
-    flex: 1,
+  offlineDot: {
+    position: 'absolute',
+    top: spacing.sm,
+    right: spacing.md,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.error,
   },
 });

@@ -565,5 +565,15 @@ export const ru = {
   "filters.transmission_robotic": "Робот",
   "filters.any": "Любой",
   "mobile.settings.dealer_account": "Аккаунт дилера",
-  "mobile.settings.individual_account": "Личный аккаунт"
+  "mobile.settings.individual_account": "Личный аккаунт",
+  "mobile.chat.type_message": "Введите сообщение…",
+  "mobile.chat.conversation": "Диалог",
+  "mobile.chat.no_conversations": "Диалогов пока нет",
+  "mobile.chat.no_conversations_hint": "Начните переписку из объявления или профиля дилера.",
+  "mobile.chat.no_messages": "Сообщений пока нет. Напишите первым!",
+  "mobile.chat.unread_count": "{{count}} непрочитанных",
+  "mobile.chat.connected": "Подключено",
+  "mobile.chat.disconnected": "Не в сети",
+  "mobile.chat.delete_title": "Удалить диалог",
+  "mobile.chat.delete_confirm": "Диалог и все сообщения будут удалены без возможности восстановления."
 } as const;

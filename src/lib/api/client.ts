@@ -66,7 +66,7 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
     });
   } catch {
     throw new ApiNetworkError(
-      'Cannot reach the API server. Check EXPO_PUBLIC_API_URL, Wi‑Fi, and that Laravel is running.',
+      `Cannot reach the API server at ${url}. Check your internet connection and API URL settings.`,
       url,
     );
   }
@@ -119,7 +119,7 @@ export async function apiFormData<T>(path: string, options: {
     throw new ApiNetworkError(
       error instanceof Error
         ? error.message
-        : 'Cannot reach the API server. Check EXPO_PUBLIC_API_URL, Wi‑Fi, and that Laravel is running.',
+        : `Cannot reach the API server at ${url}. Check your connection and API URL settings.`,
       url,
     );
   }

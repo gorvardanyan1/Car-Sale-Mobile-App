@@ -1,4 +1,6 @@
-const rawApiUrl = process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost/api/v1';
+import { readPublicEnv } from '@/lib/env/publicEnv';
+
+const rawApiUrl = readPublicEnv('EXPO_PUBLIC_API_URL') ?? 'http://localhost/api/v1';
 const normalizedApiUrl = rawApiUrl.replace(/\/$/, '');
 
 /** Normalized API base URL without trailing slash (includes /v1). */

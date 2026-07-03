@@ -565,5 +565,15 @@ export const am = {
   "filters.transmission_robotic": "Ռոբոտացված",
   "filters.any": "Ցանկացած",
   "mobile.settings.dealer_account": "Դիլերի հաշիվ",
-  "mobile.settings.individual_account": "Անհատական հաշիվ"
+  "mobile.settings.individual_account": "Անհատական հաշիվ",
+  "mobile.chat.type_message": "Մուտքագրեք հաղորդագրություն…",
+  "mobile.chat.conversation": "Զրույց",
+  "mobile.chat.no_conversations": "Զրույցներ դեռ չկան",
+  "mobile.chat.no_conversations_hint": "Սկսեք զրույց հայտարարությունից կամ դիլերի պրոֆիլից։",
+  "mobile.chat.no_messages": "Հաղորդագրություններ դեռ չկան։ Ողջունեք!",
+  "mobile.chat.unread_count": "{{count}} չընթերցված",
+  "mobile.chat.connected": "Միացված",
+  "mobile.chat.disconnected": "Անջատված",
+  "mobile.chat.delete_title": "Ջնջել զրույցը",
+  "mobile.chat.delete_confirm": "Սա կջնջի զրույցն ու բոլոր հաղորդագրությունները վերջնականապես։"
 } as const;

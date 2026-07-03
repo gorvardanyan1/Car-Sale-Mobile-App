@@ -565,5 +565,15 @@ export const en = {
   "filters.transmission_robotic": "Robotic",
   "filters.any": "Any",
   "mobile.settings.dealer_account": "Dealer account",
-  "mobile.settings.individual_account": "Individual account"
+  "mobile.settings.individual_account": "Individual account",
+  "mobile.chat.type_message": "Type a message…",
+  "mobile.chat.conversation": "Conversation",
+  "mobile.chat.no_conversations": "No conversations yet",
+  "mobile.chat.no_conversations_hint": "Start a conversation from a listing or dealer profile.",
+  "mobile.chat.no_messages": "No messages yet. Say hello!",
+  "mobile.chat.unread_count": "{{count}} unread",
+  "mobile.chat.connected": "Connected",
+  "mobile.chat.disconnected": "Offline",
+  "mobile.chat.delete_title": "Delete conversation",
+  "mobile.chat.delete_confirm": "This will permanently delete the conversation and all messages."
 } as const;
