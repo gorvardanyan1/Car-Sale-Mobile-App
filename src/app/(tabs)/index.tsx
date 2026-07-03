@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import { ArrowDownUp, Bell, Search, SlidersHorizontal, X } from 'lucide-react-native';
+import { ArrowDownUp, Bell, Building2, Search, SlidersHorizontal, X } from 'lucide-react-native';
 import { useCallback, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
@@ -112,6 +112,15 @@ export default function ListScreen() {
             </Pressable>
           }
         />
+
+        <Pressable
+          style={styles.dealersLink}
+          onPress={() => router.push('/dealers')}
+          testID="browse-dealers-link"
+        >
+          <Building2 color={colors.primaryLight} size={18} />
+          <Text style={styles.dealersLinkText}>{t('mobile.list.browse_dealers')}</Text>
+        </Pressable>
 
         <View style={styles.searchRow}>
           <ArchiveAiSearchButton onPress={() => setAiSearchOpen(true)} />
@@ -278,6 +287,23 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: radii.pill,
     backgroundColor: colors.primary,
+  },
+  dealersLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    borderRadius: radii.button,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceMuted,
+  },
+  dealersLinkText: {
+    ...typography.caption,
+    color: colors.primaryLight,
+    fontWeight: '700',
   },
   searchRow: {
     flexDirection: 'row',

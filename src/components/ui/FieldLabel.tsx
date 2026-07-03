@@ -16,9 +16,6 @@ export function FieldLabel({ label, required = false, showOptionalHint = true }:
     <Text style={styles.label}>
       {label}
       {required ? <Text style={styles.required}> *</Text> : null}
-      {!required && showOptionalHint ? (
-        <Text style={styles.optional}> ({t('common.optional')})</Text>
-      ) : null}
     </Text>
   );
 }

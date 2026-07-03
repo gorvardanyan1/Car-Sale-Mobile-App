@@ -8,6 +8,7 @@ import { AuthScreenLayout } from '@/components/auth/AuthScreenLayout';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { TextField } from '@/components/ui/TextField';
 import { useAuth } from '@/contexts/AuthContext';
+import { useMobileAuthConfig } from '@/hooks/useMobileAuthConfig';
 import { firstFieldError, getErrorMessage, mapApiErrors } from '@/lib/api/errors';
 import { colors, spacing, typography } from '@/theme';
 import type { AccountType, FieldErrors } from '@/types';
@@ -15,6 +16,7 @@ import type { AccountType, FieldErrors } from '@/types';
 export default function RegisterScreen() {
   const { signUp } = useAuth();
   const { t } = useTranslation();
+  const { dealerAuthEnabled } = useMobileAuthConfig();
   const [accountType, setAccountType] = useState<AccountType>('user');
   const [name, setName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -46,7 +48,7 @@ export default function RegisterScreen() {
 
     try {
       await signUp({
-        account_type: accountType,
+        account_type: dealerAuthEnabled ? accountType : 'user',
         name: name.trim(),
         last_name: accountType === 'user' ? lastName.trim() || undefined : undefined,
         email: email.trim(),
@@ -74,9 +76,13 @@ export default function RegisterScreen() {
       </View>
 
       <View style={styles.form}>
-        <AccountTypeToggle value={accountType} onChange={handleAccountTypeChange} />
+        {dealerAuthEnabled ? (
+          <AccountTypeToggle value={accountType} onChange={handleAccountTypeChange} />
+        ) : (
+          <Text style={styles.dealerWebHint}>{t('mobile.auth.dealer_web_only')}</Text>
+        )}
 
-        {accountType === 'dealer' ? (
+        {dealerAuthEnabled && accountType === 'dealer' ? (
           <TextField
             label={t('auth.company_name')}
             value={name}
@@ -188,6 +194,13 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: spacing.md,
+  },
+  dealerWebHint: {
+    ...typography.caption,
+    color: colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 18,
+    paddingHorizontal: spacing.sm,
   },
   nameRow: {
     flexDirection: 'row',
