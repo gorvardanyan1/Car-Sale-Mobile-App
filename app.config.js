@@ -17,6 +17,18 @@ module.exports = () => {
       apiUrl,
       chatUrl,
     },
+    plugins: [
+      ...(appJson.expo.plugins ?? []),
+      [
+        'expo-build-properties',
+        {
+          android: {
+            usesCleartextTraffic: true,
+          },
+        },
+      ],
+      './plugins/withAndroidCleartext.js',
+    ],
     ios: {
       ...appJson.expo.ios,
       infoPlist: {
