@@ -1,6 +1,8 @@
 import { config } from '@/constants/config';
 import type { ApiErrorResponse } from '@/types';
 
+import { signRequest } from './signRequest';
+
 type RequestOptions = Omit<RequestInit, 'body'> & {
   body?: unknown;
   auth?: boolean;
@@ -51,6 +53,9 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
   }
 
   const url = `${config.apiUrl}${path}`;
+  const serializedBody = body !== undefined ? JSON.stringify(body) : undefined;
+
+  Object.assign(requestHeaders, signRequest(rest.method ?? 'GET', url, serializedBody));
 
   if (__DEV__) {
     console.log(`[api] ${rest.method ?? 'GET'} ${url}`);
@@ -62,7 +67,7 @@ export async function apiFetch<T>(path: string, options: RequestOptions = {}): P
     response = await fetch(url, {
       ...rest,
       headers: requestHeaders,
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body: serializedBody,
     });
   } catch {
     throw new ApiNetworkError(
@@ -99,6 +104,7 @@ export async function apiFormData<T>(path: string, options: {
 
   const headers: Record<string, string> = {
     Accept: 'application/json',
+    ...signRequest(method, url),
   };
 
   if (auth && authToken) {
