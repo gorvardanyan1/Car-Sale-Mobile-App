@@ -9,6 +9,7 @@ const appJson = require('./app.json');
 module.exports = () => {
   const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim() || '';
   const chatUrl = process.env.EXPO_PUBLIC_CHAT_URL?.trim() || '';
+  const mobileAppSecret = process.env.EXPO_PUBLIC_MOBILE_APP_SECRET?.trim() || '';
 
   return {
     ...appJson.expo,
@@ -16,6 +17,7 @@ module.exports = () => {
       ...appJson.expo.extra,
       apiUrl,
       chatUrl,
+      mobileAppSecret,
     },
     plugins: [
       ...(appJson.expo.plugins ?? []),
