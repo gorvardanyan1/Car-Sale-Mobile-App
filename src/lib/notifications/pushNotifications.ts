@@ -157,3 +157,26 @@ export async function addNotificationResponseListener(
 
   return subscription;
 }
+
+/**
+ * The tap that cold-starts the app (fully closed, not just backgrounded)
+ * happens before any React tree — and therefore any listener — exists to
+ * catch it. Expo records that response so it can be read once on startup;
+ * without this, tapping a notification while the app is closed would open
+ * the app but silently drop the deep link.
+ */
+export async function getLaunchNotificationData(): Promise<Record<string, unknown> | null> {
+  const Notifications = await loadNotificationsModule();
+
+  if (!Notifications) {
+    return null;
+  }
+
+  const response = await Notifications.getLastNotificationResponseAsync();
+
+  if (!response) {
+    return null;
+  }
+
+  return response.notification.request.content.data as Record<string, unknown>;
+}

@@ -19,22 +19,42 @@ export function useConversations(): UseConversationsReturn {
 
   const { subscribeConversationsRefresh } = useChatSocket();
   const mountedRef = useRef(true);
+  // Chat activity (new messages, unread updates) can fire several refresh
+  // triggers within the same second. Each request is HMAC-signed over
+  // method+path+timestamp-in-seconds+body, and the API rejects duplicate
+  // signatures as replays — so firing one fetch per trigger causes real
+  // 403s, not just wasted requests. Coalesce concurrent triggers into a
+  // single in-flight fetch plus at most one trailing follow-up.
+  const inFlightRef = useRef(false);
+  const queuedRef = useRef(false);
 
   const refresh = useCallback(async () => {
+    if (inFlightRef.current) {
+      queuedRef.current = true;
+      return;
+    }
+    inFlightRef.current = true;
     try {
-      setError(null);
-      const data = await fetchConversations();
-      if (mountedRef.current) {
-        setConversations(data);
-      }
-    } catch (err) {
-      if (mountedRef.current) {
-        setError(err instanceof Error ? err.message : 'Failed to load conversations');
-      }
+      do {
+        queuedRef.current = false;
+        try {
+          setError(null);
+          const data = await fetchConversations();
+          if (mountedRef.current) {
+            setConversations(data);
+          }
+        } catch (err) {
+          if (mountedRef.current) {
+            setError(err instanceof Error ? err.message : 'Failed to load conversations');
+          }
+        } finally {
+          if (mountedRef.current) {
+            setIsLoading(false);
+          }
+        }
+      } while (queuedRef.current && mountedRef.current);
     } finally {
-      if (mountedRef.current) {
-        setIsLoading(false);
-      }
+      inFlightRef.current = false;
     }
   }, []);
 
@@ -47,7 +67,9 @@ export function useConversations(): UseConversationsReturn {
     };
   }, [refresh]);
 
-  // Re-fetch whenever a socket event signals the list changed
+  // Re-fetch whenever a socket event signals the list changed (this also
+  // fires on reconnect — see ChatSocketContext's `connect` handler — so the
+  // list is re-synced after any period of being disconnected).
   useEffect(() => {
     return subscribeConversationsRefresh(() => {
       void refresh();

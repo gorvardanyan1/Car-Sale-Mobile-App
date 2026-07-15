@@ -89,6 +89,8 @@ type ChatSocketContextValue = {
   leaveConversation: (conversationId?: string) => void;
   subscribeMessageNew: (handler: (msg: MessageNewPayload) => void) => () => void;
   subscribeConversationsRefresh: (handler: () => void) => () => void;
+  /** Fires when the socket re-establishes a connection after being dropped (not on the first connect). */
+  subscribeReconnected: (handler: () => void) => () => void;
   refreshUnreadFromApi: () => Promise<void>;
 };
 
@@ -127,9 +129,13 @@ export function ChatSocketProvider({
   const listenersRef = useRef<{
     messageNew: Set<(msg: MessageNewPayload) => void>;
     conversationsRefresh: Set<() => void>;
-  }>({ messageNew: new Set(), conversationsRefresh: new Set() });
+    reconnected: Set<() => void>;
+  }>({ messageNew: new Set(), conversationsRefresh: new Set(), reconnected: new Set() });
   const userIdRef = useRef(userId);
   userIdRef.current = userId;
+  // True once the socket has connected at least once — distinguishes a fresh
+  // connect (no catch-up needed) from a reconnect (may have missed events).
+  const hasConnectedOnceRef = useRef(false);
 
   // ── Public API helpers ───────────────────────────────────────────────────
 
@@ -154,12 +160,38 @@ export function ChatSocketProvider({
     };
   }, []);
 
+  const subscribeReconnected = useCallback((handler: () => void) => {
+    listenersRef.current.reconnected.add(handler);
+    return () => {
+      listenersRef.current.reconnected.delete(handler);
+    };
+  }, []);
+
+  // Coalesce concurrent callers (mount, app-foreground, reconnect can all
+  // fire close together) into a single in-flight fetch — the API rejects
+  // same-second duplicate-signature requests as replays, so firing one per
+  // trigger causes real 403s, not just wasted requests.
+  const unreadInFlightRef = useRef(false);
+  const unreadQueuedRef = useRef(false);
+
   const refreshUnreadFromApi = useCallback(async () => {
+    if (unreadInFlightRef.current) {
+      unreadQueuedRef.current = true;
+      return;
+    }
+    unreadInFlightRef.current = true;
     try {
-      const summary = await fetchUnreadSummary();
-      setTotalUnread(summary.totalUnread ?? 0);
-    } catch {
-      // non-fatal
+      do {
+        unreadQueuedRef.current = false;
+        try {
+          const summary = await fetchUnreadSummary();
+          setTotalUnread(summary.totalUnread ?? 0);
+        } catch {
+          // non-fatal
+        }
+      } while (unreadQueuedRef.current);
+    } finally {
+      unreadInFlightRef.current = false;
     }
   }, []);
 
@@ -254,10 +286,35 @@ export function ChatSocketProvider({
     socket.on('connect', () => {
       if (__DEV__) console.log('[chat] socket connected', socket.id);
       setConnected(true);
+
+      // Reconnect (not the first connect of this socket): we may have missed
+      // events while disconnected, so re-sync state instead of trusting the
+      // event stream to have been continuous.
+      if (hasConnectedOnceRef.current) {
+        void refreshUnreadFromApi();
+        listenersRef.current.conversationsRefresh.forEach((fn) => fn());
+        listenersRef.current.reconnected.forEach((fn) => fn());
+      }
+      hasConnectedOnceRef.current = true;
     });
     socket.on('disconnect', (reason) => {
       if (__DEV__) console.warn('[chat] socket disconnected:', reason);
       setConnected(false);
+
+      // socket.io does not auto-reconnect when the *server* initiated the
+      // disconnect (e.g. token revoked, server restart) — recover manually
+      // with a fresh token, otherwise the client is stuck offline forever.
+      if (reason === 'io server disconnect') {
+        void (async () => {
+          try {
+            const token = await fetchChatToken();
+            socket.auth = { token: `Bearer ${token}` };
+            socket.connect();
+          } catch (err) {
+            if (__DEV__) console.warn('[chat] failed to recover from server disconnect:', err);
+          }
+        })();
+      }
     });
 
     socket.on('connect_error', async (error) => {
@@ -325,7 +382,7 @@ export function ChatSocketProvider({
         listenersRef.current.conversationsRefresh.forEach((fn) => fn());
       }
     });
-  }, []);
+  }, [refreshUnreadFromApi]);
 
   // ── Connection lifecycle ──────────────────────────────────────────────────
 
@@ -333,8 +390,40 @@ export function ChatSocketProvider({
     if (!userId) return undefined;
 
     let cancelled = false;
+    // Guards the gap between "no socket yet" and `socketRef.current` being
+    // assigned: connect() awaits a token fetch before creating the socket,
+    // so two overlapping calls (e.g. an AppState blip during the initial
+    // connect) would otherwise both see `socketRef.current` as null and each
+    // create their own socket — two live connections duplicating every event.
+    let connecting = false;
 
     const connect = async () => {
+      if (connecting) return;
+
+      // Reuse the existing socket instance if we already created one for this
+      // provider mount — creating a brand-new `io()` here on every foreground
+      // transition (on top of socket.io's own auto-reconnect) leaves the old
+      // socket's listeners and reconnection loop running in the background,
+      // which can resurrect as a second live connection and duplicate every
+      // event (double messages, double room joins).
+      const existing = socketRef.current;
+      if (existing) {
+        if (existing.connected) return;
+        connecting = true;
+        try {
+          const token = await fetchChatToken();
+          if (cancelled) return;
+          existing.auth = { token: `Bearer ${token}` };
+          existing.connect();
+        } catch (err) {
+          if (__DEV__) console.warn('[chat] reconnect error:', err);
+        } finally {
+          connecting = false;
+        }
+        return;
+      }
+
+      connecting = true;
       try {
         const token = await fetchChatToken();
         if (cancelled) return;
@@ -342,7 +431,12 @@ export function ChatSocketProvider({
         if (__DEV__) console.log('[chat] connecting to', CHAT_URL);
 
         const socket = io(CHAT_URL, {
-          transports: ['websocket', 'polling'],
+          // Start on HTTP long-polling and upgrade to websocket once the
+          // session is established (socket.io's default order). Forcing
+          // 'websocket' first makes the initial connection a raw ws://
+          // handshake, which some mobile networks/routers silently drop even
+          // when plain HTTP to the same host:port works fine.
+          transports: ['polling', 'websocket'],
           auth: { token: `Bearer ${token}` },
         }) as ChatSocket;
 
@@ -350,6 +444,8 @@ export function ChatSocketProvider({
         attachListeners(socket);
       } catch (err) {
         if (__DEV__) console.warn('[chat] connect error:', err);
+      } finally {
+        connecting = false;
       }
     };
 
@@ -373,6 +469,7 @@ export function ChatSocketProvider({
         socketRef.current.disconnect();
         socketRef.current = null;
       }
+      hasConnectedOnceRef.current = false;
       setConnected(false);
     };
   }, [userId, attachListeners, refreshUnreadFromApi]);
@@ -392,6 +489,7 @@ export function ChatSocketProvider({
       leaveConversation,
       subscribeMessageNew,
       subscribeConversationsRefresh,
+      subscribeReconnected,
       refreshUnreadFromApi,
     }),
     [
@@ -408,6 +506,7 @@ export function ChatSocketProvider({
       leaveConversation,
       subscribeMessageNew,
       subscribeConversationsRefresh,
+      subscribeReconnected,
       refreshUnreadFromApi,
     ],
   );

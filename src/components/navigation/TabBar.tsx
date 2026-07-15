@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { getTabIcon } from '@/components/navigation/tabIcons';
 import { getTabBadgeCount, TAB_ITEMS, type TabRouteName } from '@/constants/navigation';
+import { useChatSocket } from '@/contexts/ChatSocketContext';
 import { colors, gradients, radii, shadows, spacing, typography } from '@/theme';
 
 type TabBarRoute = {
@@ -36,6 +37,7 @@ type TabBarProps = {
 export function TabBar({ state, descriptors, navigation }: TabBarProps) {
   const insets = useSafeAreaInsets();
   const { t } = useTranslation();
+  const { totalUnread } = useChatSocket();
 
   return (
     <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
@@ -48,7 +50,7 @@ export function TabBar({ state, descriptors, navigation }: TabBarProps) {
 
           const isFocused = state.index === index;
           const label = t(tab.labelKey);
-          const badge = getTabBadgeCount(route.name as TabRouteName);
+          const badge = getTabBadgeCount(route.name as TabRouteName, totalUnread);
           const Icon = getTabIcon(tab.iconName);
 
           const onPress = () => {
