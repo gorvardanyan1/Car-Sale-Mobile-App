@@ -24,6 +24,7 @@ export function useChatThread(conversationId: string | null): UseChatThreadRetur
     setActiveConversationId,
     markConversationRead,
     subscribeMessageNew,
+    subscribeReconnected,
     sendMessage: socketSend,
   } = useChatSocket();
 
@@ -90,6 +91,32 @@ export function useChatThread(conversationId: string | null): UseChatThreadRetur
       }
     });
   }, [subscribeMessageNew, markConversationRead]);
+
+  // Re-sync on reconnect: any messages sent/received while the socket was
+  // disconnected arrive only via REST, since `message:new` is a live event
+  // and isn't replayed for missed time — without this, messages sent during
+  // a dropped connection would silently never appear in the open thread.
+  useEffect(() => {
+    return subscribeReconnected(() => {
+      const id = conversationIdRef.current;
+      if (!id) return;
+
+      fetchMessages(id)
+        .then((data) => {
+          if (!mountedRef.current || conversationIdRef.current !== id) return;
+          setMessages((prev) => {
+            const known = new Set(prev.map((m) => m._id));
+            const missing = data.filter((m) => !known.has(m._id));
+            if (missing.length === 0) return prev;
+            return [...prev, ...missing];
+          });
+          markConversationRead(id);
+        })
+        .catch(() => {
+          // non-fatal — the live event stream will catch subsequent messages
+        });
+    });
+  }, [subscribeReconnected, markConversationRead]);
 
   const sendMessage = useCallback(
     async (text: string) => {

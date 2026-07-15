@@ -16,10 +16,10 @@ export const TAB_ITEMS: TabConfig[] = [
   { name: 'settings', labelKey: 'mobile.tabs.settings', iconName: 'settings' },
 ];
 
-export function getTabBadgeCount(routeName: TabRouteName): number {
+export function getTabBadgeCount(routeName: TabRouteName, unreadMessages = 0): number {
   switch (routeName) {
     case 'messages':
-      return 3;
+      return unreadMessages;
     case 'favorites':
       return 0;
     default:

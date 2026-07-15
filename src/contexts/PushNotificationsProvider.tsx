@@ -7,6 +7,7 @@ import { parsePushNotificationData } from '@/lib/notifications/pushNotificationD
 import {
   addNotificationResponseListener,
   configureForegroundNotifications,
+  getLaunchNotificationData,
   syncPushTokenWithBackend,
   type NotificationResponseSubscription,
 } from '@/lib/notifications/pushNotifications';
@@ -29,6 +30,14 @@ function navigateFromPushData(
     }
 
     router.push('/settings/wanted-searches');
+    return;
+  }
+
+  if (data.type === 'chat_message' && data.conversation_id) {
+    router.push({
+      pathname: '/chat/[id]',
+      params: { id: data.conversation_id },
+    });
   }
 }
 
@@ -87,6 +96,14 @@ export function PushNotificationsProvider({ children }: { children: ReactNode })
     let cancelled = false;
 
     void (async () => {
+      // A tap that cold-starts the app happens before this listener exists
+      // to catch it — check for the response that launched the app first.
+      const launchData = await getLaunchNotificationData();
+
+      if (!cancelled && launchData) {
+        navigateFromPushData(router, parsePushNotificationData(launchData));
+      }
+
       const subscription = await addNotificationResponseListener((rawData) => {
         const data = parsePushNotificationData(rawData);
         navigateFromPushData(router, data);

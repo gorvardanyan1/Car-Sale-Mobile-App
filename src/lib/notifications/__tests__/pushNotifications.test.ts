@@ -17,6 +17,19 @@ describe('parsePushNotificationData', () => {
     });
   });
 
+  it('parses chat message payload', () => {
+    expect(
+      parsePushNotificationData({
+        type: 'chat_message',
+        conversation_id: '6a5697756c85a06ee8d61c3c',
+        sender_id: 9,
+      }),
+    ).toEqual({
+      type: 'chat_message',
+      conversation_id: '6a5697756c85a06ee8d61c3c',
+    });
+  });
+
   it('returns empty object for missing data', () => {
     expect(parsePushNotificationData(undefined)).toEqual({});
   });

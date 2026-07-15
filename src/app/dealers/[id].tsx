@@ -28,7 +28,7 @@ import { useFavorites } from '@/contexts/FavoritesContext';
 import { useDealerProfile } from '@/hooks/useDealerProfile';
 import { useSafeBack } from '@/lib/navigation/useSafeBack';
 import { getErrorMessage } from '@/lib/api/errors';
-import { addDealerConversation } from '@/services/chatService';
+import { addDealerConversation } from '@/services/chatApiService';
 import type { Announcement } from '@/types/announcement';
 import { colors, radii, spacing, typography } from '@/theme';
 

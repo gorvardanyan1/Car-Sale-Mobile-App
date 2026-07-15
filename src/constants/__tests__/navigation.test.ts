@@ -15,9 +15,10 @@ describe('navigation constants', () => {
     expect(TAB_ITEMS.find((tab) => tab.isFab)?.name).toBe('create');
   });
 
-  it('returns message badge count for messages tab', () => {
-    expect(getTabBadgeCount('messages')).toBe(3);
-    expect(getTabBadgeCount('favorites')).toBe(0);
-    expect(getTabBadgeCount('settings')).toBe(0);
+  it('returns the caller-supplied unread count for the messages tab only', () => {
+    expect(getTabBadgeCount('messages')).toBe(0);
+    expect(getTabBadgeCount('messages', 5)).toBe(5);
+    expect(getTabBadgeCount('favorites', 5)).toBe(0);
+    expect(getTabBadgeCount('settings', 5)).toBe(0);
   });
 });

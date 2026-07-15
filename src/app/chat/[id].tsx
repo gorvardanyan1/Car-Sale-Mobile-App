@@ -51,24 +51,35 @@ export default function ChatThreadScreen() {
         : conversation.buyerId
       : null;
 
+  // `conversation` is looked up fresh from `conversations` on every render,
+  // so it gets a brand-new object reference whenever the list refetches —
+  // including for reasons unrelated to this thread (e.g. a message arriving
+  // in a different conversation). Depending on the object itself would leave
+  // + rejoin this room on every such refresh, opening a window where
+  // message:new events for the currently-open thread are missed. Depend on
+  // the primitive fields that actually determine which room to join instead.
+  const isDealer = conversation?.kind === 'dealer';
+  const announcementId = conversation?.announcementId;
+  const buyerId = conversation?.buyerId;
+  const ownerId = conversation?.ownerId;
+  const hasConversation = Boolean(conversation);
+
   // Join the socket room so message:new events are delivered to this client.
   // Even if the join fails (e.g. chat server not yet restarted), we mark as
   // attempted so the screen still works — message:send uses participant auth
   // on the server and doesn't strictly require room membership to save.
   const doJoin = useCallback(async () => {
-    if (!id || !conversation || joinedRef.current === id) return;
+    if (!id || !hasConversation || joinedRef.current === id) return;
     // Mark immediately so repeated renders don't call join multiple times.
     joinedRef.current = id;
-
-    const isDealer = conversation.kind === 'dealer';
 
     try {
       const ack = isDealer
         ? await joinConversationById(id)
         : await joinConversation({
-            announcementId: Number(conversation.announcementId),
-            buyerId: Number(conversation.buyerId),
-            ownerId: Number(conversation.ownerId),
+            announcementId: Number(announcementId),
+            buyerId: Number(buyerId),
+            ownerId: Number(ownerId),
           });
 
       if (ack.success) {
@@ -81,10 +92,10 @@ export default function ChatThreadScreen() {
         console.warn('[chat] doJoin threw:', err);
       }
     }
-  }, [id, conversation, joinConversation, joinConversationById]);
+  }, [id, hasConversation, isDealer, announcementId, buyerId, ownerId, joinConversation, joinConversationById]);
 
   useEffect(() => {
-    if (connected && conversation) {
+    if (connected && hasConversation) {
       void doJoin();
     }
     return () => {
@@ -93,7 +104,7 @@ export default function ChatThreadScreen() {
         joinedRef.current = null;
       }
     };
-  }, [connected, conversation, doJoin, leaveConversation]);
+  }, [connected, hasConversation, doJoin, leaveConversation]);
 
   // Keep partnerOnline in sync with presence events when not in the join ack
   useEffect(() => {
