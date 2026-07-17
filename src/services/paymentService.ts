@@ -1,5 +1,5 @@
 import { apiFetch } from '@/lib/api/client';
-import { buildPaymentRedirectUrls, getUrgentCheckoutReturnUrl } from '@/lib/payment/buildPaymentRedirectUrls';
+import { buildPaymentRedirectUrls, getStripeMobileReturnPrefix } from '@/lib/payment/buildPaymentRedirectUrls';
 import { openStripeCheckout } from '@/lib/payment/openStripeCheckout';
 import type { ApiResponse } from '@/types';
 import type {
@@ -72,7 +72,7 @@ export async function completeUrgentListingCheckout(
 
   const checkout = await openStripeCheckout(
     parsed.checkoutUrl,
-    getUrgentCheckoutReturnUrl(),
+    getStripeMobileReturnPrefix(),
   );
 
   if (checkout.outcome === 'success' && checkout.sessionId) {
@@ -115,7 +115,7 @@ export async function completeWantedSearchesCheckout(): Promise<FeatureCheckoutO
     return 'fulfilled';
   }
 
-  const checkout = await openStripeCheckout(parsed.checkoutUrl, getUrgentCheckoutReturnUrl());
+  const checkout = await openStripeCheckout(parsed.checkoutUrl, getStripeMobileReturnPrefix());
 
   if (checkout.outcome === 'success' && checkout.sessionId) {
     try {

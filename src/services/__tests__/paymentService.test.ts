@@ -23,7 +23,7 @@ vi.mock('@/lib/payment/buildPaymentRedirectUrls', () => ({
     success_url: 'http://192.168.0.109:8000/stripe/mobile-return?outcome=success&feature=urgent&announcement_id=42',
     cancel_url: 'http://192.168.0.109:8000/stripe/mobile-return?outcome=cancel&feature=urgent&announcement_id=42',
   }),
-  getUrgentCheckoutReturnUrl: () => 'http://192.168.0.109:8000/stripe/mobile-return',
+  getStripeMobileReturnPrefix: () => 'http://192.168.0.109:8000/stripe/mobile-return',
 }));
 
 describe('paymentService', () => {

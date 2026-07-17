@@ -59,7 +59,3 @@ export function buildPaymentRedirectUrls(
 export function getStripeMobileReturnPrefix(): string {
   return `${getWebAppOrigin()}/stripe/mobile-return`;
 }
-
-export function getUrgentCheckoutReturnUrl(): string {
-  return getStripeMobileReturnPrefix();
-}

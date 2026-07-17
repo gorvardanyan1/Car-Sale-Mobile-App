@@ -27,7 +27,7 @@
       },
       "package": "com.autohayq.carsale",
       "predictiveBackGestureEnabled": false,
-      "usesCleartextTraffic": true
+      "usesCleartextTraffic": false
     },
     "web": {
       "favicon": "./assets/favicon.png",

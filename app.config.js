@@ -6,10 +6,29 @@ const appJson = require('./app.json');
  * We also copy them into `extra` so release builds can read them via expo-constants
  * when Metro does not inline process.env (common cause of "Cannot reach API" on device).
  */
+/**
+ * Returns the API host to allow cleartext (HTTP) traffic for, or null when the
+ * API is already served over https:// and no exception should exist at all.
+ */
+function insecureApiHost(apiUrl) {
+  if (!apiUrl) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(apiUrl);
+
+    return parsed.protocol === 'http:' ? parsed.hostname : null;
+  } catch {
+    return null;
+  }
+}
+
 module.exports = () => {
   const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim() || '';
   const chatUrl = process.env.EXPO_PUBLIC_CHAT_URL?.trim() || '';
   const mobileAppSecret = process.env.EXPO_PUBLIC_MOBILE_APP_SECRET?.trim() || '';
+  const apiHost = insecureApiHost(apiUrl);
 
   return {
     ...appJson.expo,
@@ -25,26 +44,40 @@ module.exports = () => {
         'expo-build-properties',
         {
           android: {
-            usesCleartextTraffic: true,
+            usesCleartextTraffic: false,
           },
         },
       ],
-      './plugins/withAndroidCleartext.js',
+      ['./plugins/withAndroidCleartext.js', { apiHost }],
     ],
     ios: {
       ...appJson.expo.ios,
       infoPlist: {
         ...appJson.expo.ios?.infoPlist,
-        // Allow HTTP to production IP (NSAllowsLocalNetworking alone only covers LAN).
+        // HTTPS is required everywhere except the current API host below, ONLY
+        // when it's still http:// (see insecureApiHost() above). This is the
+        // scoped equivalent of Android's network_security_config.xml — do NOT
+        // replace with NSAllowsArbitraryLoads, which disables ATS for every host.
+        // Once EXPO_PUBLIC_API_URL is https://, this exception disappears on
+        // its own and no code here needs to change.
         NSAppTransportSecurity: {
-          NSAllowsArbitraryLoads: true,
           NSAllowsLocalNetworking: true,
+          ...(apiHost
+            ? {
+                NSExceptionDomains: {
+                  [apiHost]: {
+                    NSExceptionAllowsInsecureHTTPLoads: true,
+                    NSIncludesSubdomains: false,
+                  },
+                },
+              }
+            : {}),
         },
       },
     },
     android: {
       ...appJson.expo.android,
-      usesCleartextTraffic: true,
+      usesCleartextTraffic: false,
     },
   };
 };
