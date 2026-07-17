@@ -1,12 +1,13 @@
-import { useCallback } from 'react';
-import { Alert, FlatList, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
+import { useCallback, useState } from 'react';
+import { FlatList, StyleSheet, Text, View, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useTranslation } from 'react-i18next';
-import { MessageCircle } from 'lucide-react-native';
+import { MessageCircle, Trash2 } from 'lucide-react-native';
 
 import { ScreenContainer } from '@/components/layout/ScreenContainer';
 import { ScreenHeader } from '@/components/layout/ScreenHeader';
 import { ConversationListItem } from '@/components/chat/ConversationListItem';
+import { ConfirmActionModal } from '@/components/ui/ConfirmActionModal';
 import { useConversations } from '@/hooks/useConversations';
 import { useChatSocket } from '@/contexts/ChatSocketContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -19,6 +20,7 @@ export default function MessagesScreen() {
   const { user } = useAuth();
   const { totalUnread, connected } = useChatSocket();
   const { conversations, isLoading, error, refresh, remove } = useConversations();
+  const [deleteTarget, setDeleteTarget] = useState<ChatConversation | null>(null);
 
   const handlePress = useCallback(
     (conv: ChatConversation) => {
@@ -28,23 +30,16 @@ export default function MessagesScreen() {
     [router],
   );
 
-  const handleLongPress = useCallback(
-    (conv: ChatConversation) => {
-      Alert.alert(
-        t('mobile.chat.delete_title'),
-        t('mobile.chat.delete_confirm'),
-        [
-          { text: t('common.cancel'), style: 'cancel' },
-          {
-            text: t('common.delete'),
-            style: 'destructive',
-            onPress: () => void remove(conv._id),
-          },
-        ],
-      );
-    },
-    [t, remove],
-  );
+  const handleLongPress = useCallback((conv: ChatConversation) => {
+    setDeleteTarget(conv);
+  }, []);
+
+  const handleConfirmDelete = useCallback(() => {
+    if (deleteTarget) {
+      void remove(deleteTarget._id);
+    }
+    setDeleteTarget(null);
+  }, [deleteTarget, remove]);
 
   const subtitle = totalUnread > 0
     ? t('mobile.chat.unread_count', { count: totalUnread })
@@ -95,6 +90,17 @@ export default function MessagesScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      <ConfirmActionModal
+        visible={deleteTarget != null}
+        tone="danger"
+        icon={Trash2}
+        title={t('mobile.chat.delete_title')}
+        message={t('mobile.chat.delete_confirm')}
+        confirmLabel={t('common.delete')}
+        onConfirm={handleConfirmDelete}
+        onClose={() => setDeleteTarget(null)}
+      />
     </ScreenContainer>
   );
 }

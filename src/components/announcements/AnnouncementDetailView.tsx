@@ -532,7 +532,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   heroGradient: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   heroIconButton: {
     position: 'absolute',

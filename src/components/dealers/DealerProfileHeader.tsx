@@ -136,7 +136,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   coverOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   backButton: {
     position: 'absolute',

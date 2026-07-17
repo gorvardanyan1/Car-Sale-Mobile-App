@@ -9,10 +9,11 @@ import {
   Flame,
   Gauge,
   Heart,
+  Trash2,
   Zap,
 } from 'lucide-react-native';
 import { useState } from 'react';
-import { Alert, Image, Pressable, Share, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -29,6 +30,7 @@ import {
 import { formatTimeAgo } from '@/lib/announcements/formatTimeAgo';
 import { getAnnouncementStatusLabel } from '@/lib/announcements/getAnnouncementStatusLabel';
 import { MakeAsUrgent } from '@/components/my-announcements/MakeAsUrgent';
+import { ConfirmActionModal } from '@/components/ui/ConfirmActionModal';
 import type { Announcement } from '@/types/announcement';
 import type { FeatureAccessInfo } from '@/types/payment';
 import { colors, gradients, radii, spacing, typography } from '@/theme';
@@ -69,6 +71,7 @@ export function MyAnnouncementCard({
 }: MyAnnouncementCardProps) {
   const { t } = useTranslation();
   const [shareMessage, setShareMessage] = useState('');
+  const [pendingAction, setPendingAction] = useState<'delete' | 'sold' | null>(null);
   const imageUrl = getAnnouncementImageUrl(announcement);
   const isUrgent = announcement.is_hurry === 'yes';
   const isSold = announcement.status === 'sold';
@@ -88,25 +91,13 @@ export function MyAnnouncementCard({
     }
   }
 
-  function confirmDelete() {
-    Alert.alert(t('actions.delete'), t('my_announcements.remove_confirm'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('actions.delete'),
-        style: 'destructive',
-        onPress: () => onDelete(announcement),
-      },
-    ]);
-  }
-
-  function confirmMarkSold() {
-    Alert.alert(t('my_announcements.mark_as_sold'), t('my_announcements.sold_confirm'), [
-      { text: t('common.cancel'), style: 'cancel' },
-      {
-        text: t('my_announcements.mark_as_sold'),
-        onPress: () => onMarkSold(announcement),
-      },
-    ]);
+  function handleConfirmPendingAction() {
+    if (pendingAction === 'delete') {
+      onDelete(announcement);
+    } else if (pendingAction === 'sold') {
+      onMarkSold(announcement);
+    }
+    setPendingAction(null);
   }
 
   return (
@@ -222,12 +213,39 @@ export function MyAnnouncementCard({
         {!isSold ? (
           <ActionButton
             label={t('my_announcements.mark_as_sold')}
-            onPress={confirmMarkSold}
+            onPress={() => setPendingAction('sold')}
             tone="amber"
           />
         ) : null}
-        <ActionButton label={t('actions.delete')} onPress={confirmDelete} tone="red" />
+        <ActionButton
+          label={t('actions.delete')}
+          onPress={() => setPendingAction('delete')}
+          tone="red"
+        />
       </View>
+
+      <ConfirmActionModal
+        visible={pendingAction != null}
+        tone={pendingAction === 'sold' ? 'warning' : 'danger'}
+        icon={pendingAction === 'sold' ? CircleDollarSign : Trash2}
+        title={
+          pendingAction === 'sold'
+            ? t('my_announcements.mark_as_sold')
+            : t('actions.delete')
+        }
+        message={
+          pendingAction === 'sold'
+            ? t('my_announcements.sold_confirm')
+            : t('my_announcements.remove_confirm')
+        }
+        confirmLabel={
+          pendingAction === 'sold'
+            ? t('my_announcements.mark_as_sold')
+            : t('actions.delete')
+        }
+        onConfirm={handleConfirmPendingAction}
+        onClose={() => setPendingAction(null)}
+      />
     </View>
   );
 }

@@ -1,4 +1,4 @@
-import { Bell } from 'lucide-react-native';
+import { Bell, Trash2 } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 
 import { ScreenHeader } from '@/components/layout/ScreenHeader';
 import { ExpoGoPushBanner } from '@/components/notifications/ExpoGoPushBanner';
+import { ConfirmActionModal } from '@/components/ui/ConfirmActionModal';
 import { FeatureAccessBanner } from '@/components/wanted-searches/FeatureAccessBanner';
 import { WantedMatchCard } from '@/components/wanted-searches/WantedMatchCard';
 import { WantedSearchAlertCard } from '@/components/wanted-searches/WantedSearchAlertCard';
@@ -32,6 +33,7 @@ export default function WantedSearchesScreen() {
   const wizard = useWantedSearches();
   const [isPaying, setIsPaying] = useState(false);
   const [formResetKey, setFormResetKey] = useState(0);
+  const [deleteTarget, setDeleteTarget] = useState<WantedSearch | null>(null);
 
   useEffect(() => {
     if (paymentDone !== '1') {
@@ -63,19 +65,16 @@ export default function WantedSearchesScreen() {
     }
   }, [t, wizard.refresh]);
 
-  const confirmDelete = useCallback(
-    (search: WantedSearch) => {
-      Alert.alert(t('wanted_searches.delete_title'), t('wanted_searches.delete_confirm'), [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('actions.delete'),
-          style: 'destructive',
-          onPress: () => void wizard.remove(search.id),
-        },
-      ]);
-    },
-    [t, wizard],
-  );
+  const confirmDelete = useCallback((search: WantedSearch) => {
+    setDeleteTarget(search);
+  }, []);
+
+  const handleConfirmDelete = useCallback(() => {
+    if (deleteTarget) {
+      void wizard.remove(deleteTarget.id);
+    }
+    setDeleteTarget(null);
+  }, [deleteTarget, wizard]);
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -159,6 +158,17 @@ export default function WantedSearchesScreen() {
           </View>
         </ScrollView>
       )}
+
+      <ConfirmActionModal
+        visible={deleteTarget != null}
+        tone="danger"
+        icon={Trash2}
+        title={t('wanted_searches.delete_title')}
+        message={t('wanted_searches.delete_confirm')}
+        confirmLabel={t('actions.delete')}
+        onConfirm={handleConfirmDelete}
+        onClose={() => setDeleteTarget(null)}
+      />
     </SafeAreaView>
   );
 }
