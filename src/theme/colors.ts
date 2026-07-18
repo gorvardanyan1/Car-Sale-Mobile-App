@@ -48,4 +48,5 @@ export const gradients = {
   primary: ['#3B82F6', '#1E40AF'] as const,
   urgent: ['#F97316', '#EF4444'] as const,
   success: ['#22C55E', '#059669'] as const,
+  match: ['#F59E0B', '#EC4899'] as const,
 } as const;

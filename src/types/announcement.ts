@@ -141,6 +141,10 @@ export type Announcement = {
   likedQuantity?: number;
   subcategory_label?: string | null;
   color?: { id?: number; name?: string; hex_code?: string } | null;
+  /** Only present on entries returned inside `similarAnnouncements`. */
+  match_score?: number;
+  /** Reason keys like "same_model" or "same_transmission:automatic" (key:value). */
+  match_reasons?: string[];
 };
 
 export type MyAnnouncementsSort = 'newest' | 'oldest' | 'price-low' | 'price-high';
@@ -171,6 +175,7 @@ export type MyAnnouncementsResponse = {
 export type AnnouncementDetailResponse = {
   announcement: Announcement;
   carFeatures?: CarFeatureDefinition[];
+  similarAnnouncements?: Announcement[];
 };
 
 export type PaginationMeta = {

@@ -36,6 +36,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useFavorites } from '@/contexts/FavoritesContext';
+import { SimilarAnnouncementsSection } from './SimilarAnnouncementsSection';
 import {
   formatAnnouncementPrice,
   formatDriveType,
@@ -61,6 +62,7 @@ import { colors, gradients, radii, spacing, typography } from '@/theme';
 type AnnouncementDetailViewProps = {
   announcement: Announcement;
   carFeatures?: CarFeatureDefinition[];
+  similarAnnouncements?: Announcement[];
   backFallback?: Href;
 };
 
@@ -110,6 +112,7 @@ const statToneStyles: Record<
 export function AnnouncementDetailView({
   announcement,
   carFeatures = [],
+  similarAnnouncements = [],
   backFallback,
 }: AnnouncementDetailViewProps) {
   const router = useRouter();
@@ -173,6 +176,10 @@ export function AnnouncementDetailView({
     requireAuth(() => {
       router.push('/(tabs)/messages');
     });
+  }
+
+  function handleOpenSimilarAnnouncement(target: Announcement) {
+    router.push({ pathname: '/announcement/[id]', params: { id: String(target.id) } });
   }
 
   const resolvedStatCards = [
@@ -423,6 +430,11 @@ export function AnnouncementDetailView({
               <Text style={styles.creditButtonText}>{t('credit.calculator')}</Text>
             </Pressable>
           </View>
+
+          <SimilarAnnouncementsSection
+            announcements={similarAnnouncements}
+            onPressAnnouncement={handleOpenSimilarAnnouncement}
+          />
         </View>
       </ScrollView>
     </View>
