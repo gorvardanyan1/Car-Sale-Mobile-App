@@ -17,6 +17,7 @@ import {
   MILEAGE_UNIT_OPTIONS,
   TRANSMISSION_OPTIONS,
 } from '@/constants/archive';
+import { resolveStorageImageUrl } from '@/lib/announcements/formatAnnouncement';
 import { fetchBrandModels, fetchPlaces } from '@/services/announcementService';
 import type { ArchiveConfig, ArchiveFilterState } from '@/types/announcement';
 import { colors, radii, spacing, typography } from '@/theme';
@@ -94,6 +95,18 @@ export function ArchiveFilterModal({
     };
   }, [draft.country_id]);
 
+  const subcategoryOptions = useMemo(
+    () => [
+      { value: '' as const, label: t('mobile.archive.subcategory_all'), icon: null },
+      ...config.subcategoryFilters.map((item) => ({
+        value: item.slug,
+        label: item.name || item.slug,
+        icon: item.icon_url ? resolveStorageImageUrl(item.icon_url) : null,
+      })),
+    ],
+    [config.subcategoryFilters, t],
+  );
+
   const brandOptions = useMemo(
     () => [
       { value: '' as const, label: t('filters.all_brands') },
@@ -160,6 +173,14 @@ export function ArchiveFilterModal({
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
+          <SelectField
+            label={t('mobile.filters.category')}
+            value={draft.subcategory_slug}
+            options={subcategoryOptions}
+            onChange={(value) => updateDraft('subcategory_slug', value)}
+            placeholder={t('mobile.select.placeholder')}
+          />
+
           <SelectField
             label={t('mobile.filters.country')}
             value={draft.country_id}

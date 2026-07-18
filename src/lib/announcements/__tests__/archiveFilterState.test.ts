@@ -56,4 +56,17 @@ describe('archiveFilterState', () => {
       }),
     ).toBe(2);
   });
+
+  it('counts a selected category as an active filter', () => {
+    expect(
+      countActiveFilters({
+        search: '',
+        country_id: 1,
+        place_id: '',
+        currency_id: 1,
+        mileage_unit: 'km',
+        subcategory_slug: 'suv',
+      }),
+    ).toBe(1);
+  });
 });

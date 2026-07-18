@@ -62,7 +62,7 @@ export type PlaceOption = {
 
 export type SubcategoryFilter = {
   slug: string;
-  label?: string;
+  name?: string;
   icon_url?: string | null;
 };
 

@@ -40,7 +40,6 @@ type UseArchiveListResult = {
   setFilters: React.Dispatch<React.SetStateAction<ArchiveFilterState>>;
   setSearch: (search: string) => void;
   setSort: (sort: ArchiveSort) => void;
-  setSubcategorySlug: (slug: string) => void;
   applyFilters: (nextFilters?: ArchiveFilterState) => void;
   resetFilters: () => void;
   loadMore: () => void;
@@ -219,16 +218,6 @@ export function useArchiveList(): UseArchiveListResult {
     setFilters((prev) => ({ ...prev, search }));
   }, []);
 
-  const setSubcategorySlug = useCallback(
-    (slug: string) => {
-      const nextFilters = { ...filtersRef.current, subcategory_slug: slug };
-      setFilters(nextFilters);
-      setPage(1);
-      loadPage(1, { replace: true, nextFilters });
-    },
-    [loadPage],
-  );
-
   const setSort = useCallback(
     (nextSort: ArchiveSort) => {
       setSortState(nextSort);
@@ -289,7 +278,6 @@ export function useArchiveList(): UseArchiveListResult {
     setFilters,
     setSearch,
     setSort,
-    setSubcategorySlug,
     applyFilters,
     resetFilters,
     loadMore,

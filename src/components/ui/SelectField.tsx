@@ -2,6 +2,7 @@ import { ChevronDown } from 'lucide-react-native';
 import { ReactNode, useState } from 'react';
 import {
   FlatList,
+  Image,
   Modal,
   Pressable,
   StyleSheet,
@@ -16,6 +17,7 @@ import { colors, radii, spacing, typography } from '@/theme';
 export type SelectOption<T extends string | number = string> = {
   value: T | '';
   label: string;
+  icon?: string | null;
 };
 
 type SelectFieldProps<T extends string | number = string> = {
@@ -59,6 +61,9 @@ export function SelectField<T extends string | number = string>({
         onPress={() => setOpen(true)}
         style={[styles.trigger, disabled && styles.triggerDisabled]}
       >
+        {selected?.icon ? (
+          <Image source={{ uri: selected.icon }} style={styles.triggerIcon} resizeMode="contain" />
+        ) : null}
         <Text style={[styles.triggerText, !selected && styles.placeholder]} numberOfLines={1}>
           {selected?.label ?? placeholder}
         </Text>
@@ -93,6 +98,9 @@ export function SelectField<T extends string | number = string>({
                     }}
                     style={[styles.option, isSelected && styles.optionSelected]}
                   >
+                    {item.icon ? (
+                      <Image source={{ uri: item.icon }} style={styles.optionIcon} resizeMode="contain" />
+                    ) : null}
                     <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
                       {item.label}
                     </Text>
@@ -168,6 +176,10 @@ const styles = StyleSheet.create({
   triggerDisabled: {
     opacity: 0.5,
   },
+  triggerIcon: {
+    width: 20,
+    height: 20,
+  },
   triggerText: {
     ...typography.body,
     color: colors.text,
@@ -204,6 +216,9 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   option: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.sm,
     borderRadius: radii.sm,
@@ -211,9 +226,14 @@ const styles = StyleSheet.create({
   optionSelected: {
     backgroundColor: 'rgba(59, 130, 246, 0.15)',
   },
+  optionIcon: {
+    width: 22,
+    height: 22,
+  },
   optionText: {
     ...typography.body,
     color: colors.textSecondary,
+    flexShrink: 1,
   },
   optionTextSelected: {
     color: colors.primaryLight,

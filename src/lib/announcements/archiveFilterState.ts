@@ -54,6 +54,7 @@ export function buildInitialArchiveFilters({
 export function countActiveFilters(filters: ArchiveFilterState): number {
   let count = 0;
 
+  if (filters.subcategory_slug) count += 1;
   if (filters.brand_id) count += 1;
   if (filters.model_id) count += 1;
   if (filters.price_min) count += 1;

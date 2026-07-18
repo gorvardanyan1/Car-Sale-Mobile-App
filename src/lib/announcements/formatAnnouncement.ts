@@ -4,9 +4,36 @@ import type { Announcement, CarFeatureDefinition } from '@/types/announcement';
 
 const storageBaseUrl = config.apiUrl.replace(/\/api\/v1$/, '');
 
+/**
+ * Rebases a storage path/URL onto this app's own API host.
+ *
+ * Some backend fields (e.g. category icon_url) are built server-side from
+ * APP_URL and can point at a host the device can't reach (a local dev
+ * domain, a different LAN IP than EXPO_PUBLIC_API_URL, etc). Any absolute
+ * URL whose path matches our own Storage::url() convention (`/storage/...`)
+ * gets rebased onto storageBaseUrl so it keeps loading regardless of what
+ * origin the backend embedded. Absolute URLs that don't match that shape
+ * (e.g. a dealer logo hosted on a real external CDN) are left untouched.
+ */
 export function resolveStorageImageUrl(path: string): string {
-  if (path.startsWith('http://') || path.startsWith('https://')) {
+  if (!path) {
     return path;
+  }
+
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    let pathname: string;
+    try {
+      pathname = new URL(path).pathname;
+    } catch {
+      return path;
+    }
+
+    const normalized = pathname.replace(/^\/+/, '');
+    if (!normalized.startsWith('storage/')) {
+      return path;
+    }
+
+    return `${storageBaseUrl}/${normalized}`;
   }
 
   const normalized = path.replace(/^\/+/, '');

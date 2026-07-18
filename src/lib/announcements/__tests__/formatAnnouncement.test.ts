@@ -9,6 +9,7 @@ import {
   getAnnouncementGalleryUrls,
   getListingSubtitle,
   isVerifiedDealerListing,
+  resolveStorageImageUrl,
 } from '@/lib/announcements/formatAnnouncement';
 import type { Announcement } from '@/types/announcement';
 
@@ -62,5 +63,39 @@ describe('formatAnnouncement helpers', () => {
     expect(
       getAnnouncementFeatureLabels(announcement, [{ key: 'sunroof', name_en: 'Sunroof' }]),
     ).toEqual(['Sunroof']);
+  });
+
+  describe('resolveStorageImageUrl', () => {
+    it('rebases a relative storage path onto the app API host', () => {
+      expect(resolveStorageImageUrl('storage/cars/main.jpg')).toBe(
+        'http://localhost/storage/cars/main.jpg',
+      );
+    });
+
+    it('prefixes a bare path with /storage', () => {
+      expect(resolveStorageImageUrl('cars/main.jpg')).toBe('http://localhost/storage/cars/main.jpg');
+    });
+
+    it('rebases a /storage/ URL from a mismatched host onto the app API host', () => {
+      expect(resolveStorageImageUrl('http://autohayq.loc/storage/category-icons/suv.png')).toBe(
+        'http://localhost/storage/category-icons/suv.png',
+      );
+    });
+
+    it('rebases an https /storage/ URL from a mismatched host too', () => {
+      expect(resolveStorageImageUrl('https://staging.autohayq.com/storage/icons/sedan.png')).toBe(
+        'http://localhost/storage/icons/sedan.png',
+      );
+    });
+
+    it('leaves a genuine external URL (no /storage/ path) untouched', () => {
+      expect(resolveStorageImageUrl('https://cdn.example.com/logo.jpg')).toBe(
+        'https://cdn.example.com/logo.jpg',
+      );
+    });
+
+    it('returns falsy input unchanged', () => {
+      expect(resolveStorageImageUrl('')).toBe('');
+    });
   });
 });

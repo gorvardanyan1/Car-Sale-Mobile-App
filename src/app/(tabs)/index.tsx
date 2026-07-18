@@ -19,7 +19,10 @@ import {
   ArchiveAiSearchButton,
   ArchiveAiSearchModal,
 } from '@/components/announcements/ArchiveAiSearchModal';
-import { ArchiveSubcategoryChips } from '@/components/announcements/ArchiveSubcategoryChips';
+import {
+  AdvancedSearchButton,
+  AdvancedSearchModal,
+} from '@/components/announcements/AdvancedSearchModal';
 import { ListingCard } from '@/components/announcements/ListingCard';
 import { SponsoredAdCard } from '@/components/announcements/SponsoredAdCard';
 import { SortPickerModal } from '@/components/announcements/SortPickerModal';
@@ -43,6 +46,7 @@ export default function ListScreen() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
   const [aiSearchOpen, setAiSearchOpen] = useState(false);
+  const [advancedSearchOpen, setAdvancedSearchOpen] = useState(false);
 
   const {
     feedItems,
@@ -57,7 +61,6 @@ export default function ListScreen() {
     error,
     hasMore,
     setSearch,
-    setSubcategorySlug,
     applyFilters,
     resetFilters,
     loadMore,
@@ -89,6 +92,13 @@ export default function ListScreen() {
     });
   }
 
+  const handleAdvancedSearch = useCallback(
+    (query: string) => {
+      applyFilters({ ...filters, search: query });
+    },
+    [applyFilters, filters],
+  );
+
   const handleToggleFavorite = useCallback(
     async (announcement: Announcement) => {
       const succeeded = await toggleFavorite(announcement);
@@ -106,24 +116,27 @@ export default function ListScreen() {
           greeting={t('mobile.greeting.afternoon')}
           title={t('mobile.list.title')}
           rightSlot={
-            <Pressable style={styles.bellButton}>
-              <Bell color={colors.textSecondary} size={20} />
-              <View style={styles.bellDot} />
-            </Pressable>
+            <View style={styles.headerActions}>
+              <Pressable
+                style={styles.dealersButton}
+                onPress={() => router.push('/dealers')}
+                testID="browse-dealers-link"
+                accessibilityRole="button"
+                accessibilityLabel={t('mobile.list.browse_dealers')}
+              >
+                <Building2 color={colors.primaryLight} size={20} />
+              </Pressable>
+              <Pressable style={styles.bellButton}>
+                <Bell color={colors.textSecondary} size={20} />
+                <View style={styles.bellDot} />
+              </Pressable>
+            </View>
           }
         />
 
-        <Pressable
-          style={styles.dealersLink}
-          onPress={() => router.push('/dealers')}
-          testID="browse-dealers-link"
-        >
-          <Building2 color={colors.primaryLight} size={18} />
-          <Text style={styles.dealersLinkText}>{t('mobile.list.browse_dealers')}</Text>
-        </Pressable>
-
         <View style={styles.searchRow}>
           <ArchiveAiSearchButton onPress={() => setAiSearchOpen(true)} />
+          <AdvancedSearchButton onPress={() => setAdvancedSearchOpen(true)} />
           <View style={styles.searchInputWrap}>
             <Search color={colors.textSubtle} size={16} />
             <TextInput
@@ -150,14 +163,6 @@ export default function ListScreen() {
             ) : null}
           </Pressable>
         </View>
-
-        {config ? (
-          <ArchiveSubcategoryChips
-            subcategories={config.subcategoryFilters}
-            activeSlug={filters.subcategory_slug}
-            onChange={setSubcategorySlug}
-          />
-        ) : null}
 
         <View style={styles.resultsRow}>
           <Text style={styles.resultsCount}>
@@ -260,6 +265,13 @@ export default function ListScreen() {
         onClose={() => setAiSearchOpen(false)}
         onOpenListing={openDetail}
       />
+
+      <AdvancedSearchModal
+        visible={advancedSearchOpen}
+        currentSearch={filters.search}
+        onClose={() => setAdvancedSearchOpen(false)}
+        onSearch={handleAdvancedSearch}
+      />
     </ScreenContainer>
   );
 }
@@ -268,6 +280,11 @@ const styles = StyleSheet.create({
   headerSection: {
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.sm,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
   },
   bellButton: {
     width: 40,
@@ -288,22 +305,15 @@ const styles = StyleSheet.create({
     borderRadius: radii.pill,
     backgroundColor: colors.primary,
   },
-  dealersLink: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    borderRadius: radii.button,
+  dealersButton: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.surfaceMuted,
-  },
-  dealersLinkText: {
-    ...typography.caption,
-    color: colors.primaryLight,
-    fontWeight: '700',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   searchRow: {
     flexDirection: 'row',
