@@ -20,7 +20,7 @@ function buildNetworkSecurityXml(cleartextHosts) {
     below, so a compromised dependency, DNS-spoofing MITM, or misconfigured
     redirect can't make this app send tokens/payment data to an arbitrary host
     over plaintext. The API host is derived from EXPO_PUBLIC_API_URL at build
-    time (see app.config.js) -- once that URL is https://, no exception is
+    time (see app.config.js); once that URL is https://, no exception is
     added here at all and this file only allows the static local-dev aliases.
   -->
   <base-config cleartextTrafficPermitted="false">
