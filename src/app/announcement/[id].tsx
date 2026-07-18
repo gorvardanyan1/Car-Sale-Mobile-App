@@ -14,6 +14,7 @@ export default function AnnouncementDetailScreen() {
   const { t } = useTranslation();
   const [announcement, setAnnouncement] = useState<Announcement | null>(null);
   const [carFeatures, setCarFeatures] = useState<CarFeatureDefinition[]>([]);
+  const [similarAnnouncements, setSimilarAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,6 +32,7 @@ export default function AnnouncementDetailScreen() {
         if (!cancelled) {
           setAnnouncement(data.announcement);
           setCarFeatures(data.carFeatures ?? []);
+          setSimilarAnnouncements(data.similarAnnouncements ?? []);
         }
       } catch (err) {
         if (!cancelled) {
@@ -74,6 +76,7 @@ export default function AnnouncementDetailScreen() {
     <AnnouncementDetailView
       announcement={announcement}
       carFeatures={carFeatures}
+      similarAnnouncements={similarAnnouncements}
       backFallback={from === 'create' ? '/settings/my-announcements' : '/(tabs)'}
     />
   );
