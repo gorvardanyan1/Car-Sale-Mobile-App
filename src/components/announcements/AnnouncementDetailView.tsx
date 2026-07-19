@@ -36,6 +36,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { useFavorites } from '@/contexts/FavoritesContext';
+import { ImageLightbox } from './ImageLightbox';
 import { SimilarAnnouncementsSection } from './SimilarAnnouncementsSection';
 import {
   formatAnnouncementPrice,
@@ -122,6 +123,7 @@ export function AnnouncementDetailView({
   const { user, isAuthenticated } = useAuth();
   const { isFavorite, toggleFavorite } = useFavorites();
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [isLightboxVisible, setIsLightboxVisible] = useState(false);
 
   const galleryUrls = useMemo(() => getAnnouncementGalleryUrls(announcement), [announcement]);
   const activeImageUrl = galleryUrls[activeImageIndex] ?? null;
@@ -243,7 +245,15 @@ export function AnnouncementDetailView({
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         <View style={styles.heroWrap}>
           {activeImageUrl ? (
-            <Image source={{ uri: activeImageUrl }} style={styles.heroImage} resizeMode="cover" />
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={t('gallery.fullscreen_view')}
+              onPress={() => setIsLightboxVisible(true)}
+              style={styles.heroImagePressable}
+              testID="announcement-detail-open-lightbox"
+            >
+              <Image source={{ uri: activeImageUrl }} style={styles.heroImage} resizeMode="cover" />
+            </Pressable>
           ) : (
             <View style={styles.heroPlaceholder}>
               <Car color={colors.textDisabled} size={40} strokeWidth={1.5} />
@@ -253,6 +263,7 @@ export function AnnouncementDetailView({
           <LinearGradient
             colors={['transparent', 'rgba(0,0,0,0.65)']}
             style={styles.heroGradient}
+            pointerEvents="none"
           />
 
           <Pressable
@@ -437,6 +448,15 @@ export function AnnouncementDetailView({
           />
         </View>
       </ScrollView>
+
+      {isLightboxVisible ? (
+        <ImageLightbox
+          images={galleryUrls}
+          initialIndex={activeImageIndex}
+          onClose={() => setIsLightboxVisible(false)}
+          altText={title}
+        />
+      ) : null}
     </View>
   );
 }
@@ -533,6 +553,10 @@ const styles = StyleSheet.create({
     aspectRatio: 4 / 3,
     backgroundColor: colors.surfaceMuted,
     position: 'relative',
+  },
+  heroImagePressable: {
+    width: '100%',
+    height: '100%',
   },
   heroImage: {
     width: '100%',
