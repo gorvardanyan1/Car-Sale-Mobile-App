@@ -1,4 +1,5 @@
 import type { ApiFormDataInput } from '@/lib/api/client';
+import { buildAnnouncementDescriptionPayload } from '@/lib/announcements/buildAnnouncementDescription';
 import { shouldHideEngineCapacity } from '@/lib/announcements/engineType';
 import type { CreateAnnouncementFormState, SubcategoryOption } from '@/types/announcement';
 
@@ -32,11 +33,15 @@ export function buildEditAnnouncementFormData({
     currency_id: form.currency_id,
     drive_type: form.drive_type,
     transmission: form.transmission,
-    description: form.description.trim(),
+    description: buildAnnouncementDescriptionPayload(form),
     horsepower: form.horsepower,
     engine_type: form.engine_type,
     additional_images_url: form.existingAdditionalImagePaths,
   };
+
+  if (form.storePriceChange) {
+    fields.store_price_change = '1';
+  }
 
   if (form.subcategory_slug) {
     fields.subcategory_slug = form.subcategory_slug;

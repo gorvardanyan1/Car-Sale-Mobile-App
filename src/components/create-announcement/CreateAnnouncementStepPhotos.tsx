@@ -6,6 +6,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from 'react-native';
@@ -25,7 +26,15 @@ type CreateAnnouncementStepPhotosProps = {
 
 export function CreateAnnouncementStepPhotos({ wizard }: CreateAnnouncementStepPhotosProps) {
   const { t } = useTranslation();
-  const { form, updateForm, generatingDescription, runGenerateDescription } = wizard;
+  const {
+    form,
+    updateForm,
+    updateTranslation,
+    generatingDescription,
+    runGenerateDescription,
+    translating,
+    runTranslate,
+  } = wizard;
   const mainPreviewUri =
     form.mainImage?.uri ??
     (form.existingMainImagePath ? resolveStorageImageUrl(form.existingMainImagePath) : null);
@@ -154,6 +163,80 @@ export function CreateAnnouncementStepPhotos({ wizard }: CreateAnnouncementStepP
         textAlignVertical="top"
         required
       />
+
+      <View style={styles.translationsToggleRow}>
+        <View style={styles.translationsToggleText}>
+          <Text style={styles.translationsToggleTitle}>{t('announcement.enable_translations')}</Text>
+          <Text style={styles.translationsToggleHint}>{t('announcement.translations_hint')}</Text>
+        </View>
+        <Switch
+          value={form.translationsEnabled}
+          onValueChange={(value) => updateForm({ translationsEnabled: value })}
+          trackColor={{ false: colors.border, true: colors.primary }}
+        />
+      </View>
+
+      {form.translationsEnabled ? (
+        <View style={styles.translationsBlock}>
+          <Text style={styles.translationsHeading}>{t('announcement.translations')}</Text>
+
+          <View style={styles.translationField}>
+            <View style={styles.translationFieldHeader}>
+              <Text style={styles.translationFieldLabel}>{t('mobile.settings.language_am')}</Text>
+              <Pressable
+                onPress={() => void runTranslate('am')}
+                disabled={translating.am || !form.description.trim()}
+                style={[
+                  styles.translateButton,
+                  (translating.am || !form.description.trim()) && styles.translateButtonDisabled,
+                ]}
+              >
+                <Text style={styles.translateButtonText}>
+                  {translating.am ? t('announcement.translating') : t('announcement.ai_translate')}
+                </Text>
+              </Pressable>
+            </View>
+            <TextField
+              label=""
+              value={form.translations.am}
+              onChangeText={(value) => updateTranslation('am', value)}
+              multiline
+              numberOfLines={3}
+              style={styles.translationInput}
+              textAlignVertical="top"
+              placeholder={t('announcement.enter_description_am')}
+            />
+          </View>
+
+          <View style={styles.translationField}>
+            <View style={styles.translationFieldHeader}>
+              <Text style={styles.translationFieldLabel}>{t('mobile.settings.language_ru')}</Text>
+              <Pressable
+                onPress={() => void runTranslate('ru')}
+                disabled={translating.ru || !form.description.trim()}
+                style={[
+                  styles.translateButton,
+                  (translating.ru || !form.description.trim()) && styles.translateButtonDisabled,
+                ]}
+              >
+                <Text style={styles.translateButtonText}>
+                  {translating.ru ? t('announcement.translating') : t('announcement.ai_translate')}
+                </Text>
+              </Pressable>
+            </View>
+            <TextField
+              label=""
+              value={form.translations.ru}
+              onChangeText={(value) => updateTranslation('ru', value)}
+              multiline
+              numberOfLines={3}
+              style={styles.translationInput}
+              textAlignVertical="top"
+              placeholder={t('announcement.enter_description_ru')}
+            />
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -266,5 +349,70 @@ const styles = StyleSheet.create({
   },
   descriptionInput: {
     minHeight: 140,
+  },
+  translationsToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radii.card,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.card,
+  },
+  translationsToggleText: {
+    flex: 1,
+    gap: 2,
+  },
+  translationsToggleTitle: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  translationsToggleHint: {
+    ...typography.caption,
+    color: colors.textSubtle,
+  },
+  translationsBlock: {
+    gap: spacing.md,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.cardBorder,
+  },
+  translationsHeading: {
+    ...typography.sectionTitle,
+    color: colors.text,
+    fontSize: 14,
+  },
+  translationField: {
+    gap: spacing.xs,
+  },
+  translationFieldHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  translationFieldLabel: {
+    ...typography.body,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  translateButton: {
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 6,
+    borderRadius: radii.pill,
+    backgroundColor: colors.primary,
+  },
+  translateButtonDisabled: {
+    opacity: 0.5,
+  },
+  translateButtonText: {
+    ...typography.caption,
+    color: colors.white,
+    fontWeight: '700',
+  },
+  translationInput: {
+    minHeight: 80,
   },
 });

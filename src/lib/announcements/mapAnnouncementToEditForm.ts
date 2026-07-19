@@ -23,6 +23,28 @@ export function parseAnnouncementDescription(description: string | null | undefi
   return description;
 }
 
+export function parseAnnouncementTranslations(
+  description: string | null | undefined,
+): { am: string; ru: string } {
+  if (!description) {
+    return { am: '', ru: '' };
+  }
+
+  try {
+    const parsed = JSON.parse(description) as { am?: string; ru?: string };
+    if (typeof parsed === 'object' && parsed !== null) {
+      return {
+        am: typeof parsed.am === 'string' ? parsed.am : '',
+        ru: typeof parsed.ru === 'string' ? parsed.ru : '',
+      };
+    }
+  } catch {
+    // Plain text description.
+  }
+
+  return { am: '', ru: '' };
+}
+
 export function parseAnnouncementFeatures(feature: string | null | undefined): Record<string, boolean> {
   if (!feature) {
     return {};
@@ -94,6 +116,7 @@ function parseMileage(mileage: EditAnnouncementRecord['mileage']): {
 
 export function mapAnnouncementToEditForm(announcement: EditAnnouncementRecord): CreateAnnouncementFormState {
   const mileage = parseMileage(announcement.mileage);
+  const translations = parseAnnouncementTranslations(announcement.description);
 
   return {
     subcategory_slug: announcement.subcategory_slug ?? '',
@@ -121,5 +144,8 @@ export function mapAnnouncementToEditForm(announcement: EditAnnouncementRecord):
     additionalImages: [],
     existingMainImagePath: announcement.main_image_path ?? null,
     existingAdditionalImagePaths: parseAdditionalImagePaths(announcement.additional_images_path),
+    translationsEnabled: Boolean(translations.am || translations.ru),
+    translations,
+    storePriceChange: false,
   };
 }

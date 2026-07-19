@@ -1,6 +1,8 @@
+import { Sparkles } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
-import { StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
+import { AnnouncementPriceSuggestionModal } from '@/components/create-announcement/AnnouncementPriceSuggestionModal';
 import { FieldLabel } from '@/components/ui/FieldLabel';
 import { NumberField, SelectField } from '@/components/ui/SelectField';
 import { TextField } from '@/components/ui/TextField';
@@ -31,6 +33,7 @@ function getFeatureLabel(feature: CarFeatureDefinition, language: string): strin
 export function CreateAnnouncementStepDetails({ wizard }: CreateAnnouncementStepDetailsProps) {
   const { t, i18n } = useTranslation();
   const {
+    isEdit,
     config,
     form,
     brandOptions,
@@ -48,6 +51,14 @@ export function CreateAnnouncementStepDetails({ wizard }: CreateAnnouncementStep
     setBrand,
     setCountry,
     toggleFeature,
+    priceChanged,
+    generatingPriceSuggestion,
+    priceSuggestion,
+    priceSuggestionError,
+    priceSuggestionVisible,
+    runGeneratePriceSuggestion,
+    closePriceSuggestion,
+    applyPriceSuggestion,
   } = wizard;
 
   if (!config) {
@@ -112,6 +123,22 @@ export function CreateAnnouncementStepDetails({ wizard }: CreateAnnouncementStep
           />
         </View>
       </View>
+
+      <Pressable onPress={() => void runGeneratePriceSuggestion()} style={styles.aiPriceButton}>
+        <Sparkles color={colors.primaryLight} size={14} />
+        <Text style={styles.aiPriceButtonText}>{t('announcement.get_ai_price_suggestion')}</Text>
+      </Pressable>
+
+      {isEdit && priceChanged ? (
+        <View style={styles.priceChangeRow}>
+          <Text style={styles.priceChangeLabel}>{t('announcement.store_price_change')}</Text>
+          <Switch
+            value={form.storePriceChange}
+            onValueChange={(value) => updateForm({ storePriceChange: value })}
+            trackColor={{ false: colors.border, true: colors.primary }}
+          />
+        </View>
+      ) : null}
 
       <SelectField
         label={t('announcement.currency')}
@@ -261,6 +288,15 @@ export function CreateAnnouncementStepDetails({ wizard }: CreateAnnouncementStep
           })}
         </View>
       ) : null}
+
+      <AnnouncementPriceSuggestionModal
+        visible={priceSuggestionVisible}
+        loading={generatingPriceSuggestion}
+        suggestion={priceSuggestion}
+        error={priceSuggestionError}
+        onClose={closePriceSuggestion}
+        onUsePrice={applyPriceSuggestion}
+      />
     </View>
   );
 }
@@ -280,6 +316,34 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   half: {
+    flex: 1,
+  },
+  aiPriceButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    marginTop: -spacing.xs,
+  },
+  aiPriceButtonText: {
+    ...typography.caption,
+    color: colors.primaryLight,
+    fontWeight: '700',
+  },
+  priceChangeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.card,
+  },
+  priceChangeLabel: {
+    ...typography.body,
+    color: colors.textSecondary,
     flex: 1,
   },
   flex: {

@@ -1,4 +1,5 @@
 import type { ApiFormDataInput } from '@/lib/api/client';
+import { buildAnnouncementDescriptionPayload } from '@/lib/announcements/buildAnnouncementDescription';
 import { shouldHideEngineCapacity } from '@/lib/announcements/engineType';
 import type { CreateAnnouncementFormState, SubcategoryOption } from '@/types/announcement';
 
@@ -29,7 +30,7 @@ export function buildCreateAnnouncementFormData({
     currency_id: form.currency_id,
     drive_type: form.drive_type,
     transmission: form.transmission,
-    description: form.description.trim(),
+    description: buildAnnouncementDescriptionPayload(form),
     horsepower: form.horsepower,
     engine_type: form.engine_type,
     main_image: form.mainImage ?? undefined,

@@ -278,6 +278,19 @@ export type PickedImage = {
   type: string;
 };
 
+export type AnnouncementTranslations = {
+  am: string;
+  ru: string;
+};
+
+export type AiPriceSuggestion = {
+  recommended_price?: number | string | null;
+  min_price?: number | string | null;
+  max_price?: number | string | null;
+  confidence?: string | null;
+  reason?: string | null;
+};
+
 export type CreateAnnouncementFormState = {
   subcategory_slug: string;
   car_brand_id: number | '';
@@ -303,4 +316,7 @@ export type CreateAnnouncementFormState = {
   additionalImages: PickedImage[];
   existingMainImagePath: string | null;
   existingAdditionalImagePaths: string[];
+  translationsEnabled: boolean;
+  translations: AnnouncementTranslations;
+  storePriceChange: boolean;
 };
