@@ -16,15 +16,20 @@ import {
   fetchCreateFormConfig,
   fetchEditFormConfig,
   generateAnnouncementDescription,
+  generateAnnouncementPriceSuggestion,
+  translateAnnouncementDescription,
   updateAnnouncement,
 } from '@/services/createAnnouncementService';
 import type {
+  AiPriceSuggestion,
   CarBrand,
   CarModel,
   CreateAnnouncementFormState,
   CreateFormConfig,
   PlaceOption,
 } from '@/types/announcement';
+
+type TranslationLanguage = 'am' | 'ru';
 
 const emptyForm = (): CreateAnnouncementFormState => ({
   subcategory_slug: '',
@@ -51,6 +56,9 @@ const emptyForm = (): CreateAnnouncementFormState => ({
   additionalImages: [],
   existingMainImagePath: null,
   existingAdditionalImagePaths: [],
+  translationsEnabled: false,
+  translations: { am: '', ru: '' },
+  storePriceChange: false,
 });
 
 export function useCreateAnnouncement(announcementId?: number) {
@@ -68,6 +76,12 @@ export function useCreateAnnouncement(announcementId?: number) {
   const [submitting, setSubmitting] = useState(false);
   const [generatingDescription, setGeneratingDescription] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [priceChanged, setPriceChanged] = useState(false);
+  const [generatingPriceSuggestion, setGeneratingPriceSuggestion] = useState(false);
+  const [priceSuggestion, setPriceSuggestion] = useState<AiPriceSuggestion | null>(null);
+  const [priceSuggestionError, setPriceSuggestionError] = useState<string | null>(null);
+  const [priceSuggestionVisible, setPriceSuggestionVisible] = useState(false);
+  const [translating, setTranslating] = useState<Partial<Record<TranslationLanguage, boolean>>>({});
 
   useEffect(() => {
     let cancelled = false;
@@ -169,8 +183,22 @@ export function useCreateAnnouncement(announcementId?: number) {
     void loadPlaces(form.country_id);
   }, [form.country_id, loadPlaces]);
 
-  const updateForm = useCallback((patch: Partial<CreateAnnouncementFormState>) => {
-    setForm((prev) => ({ ...prev, ...patch }));
+  const updateForm = useCallback(
+    (patch: Partial<CreateAnnouncementFormState>) => {
+      if (isEdit && Object.prototype.hasOwnProperty.call(patch, 'price')) {
+        setPriceChanged(true);
+      }
+
+      setForm((prev) => ({ ...prev, ...patch }));
+    },
+    [isEdit],
+  );
+
+  const updateTranslation = useCallback((language: TranslationLanguage, value: string) => {
+    setForm((prev) => ({
+      ...prev,
+      translations: { ...prev.translations, [language]: value },
+    }));
   }, []);
 
   const setBrand = useCallback((brandId: number | '') => {
@@ -314,6 +342,82 @@ export function useCreateAnnouncement(announcementId?: number) {
     updateForm,
   ]);
 
+  const runGeneratePriceSuggestion = useCallback(async () => {
+    if (!config) {
+      return;
+    }
+
+    const brand = brandOptions.find((option) => option.value === form.car_brand_id)?.label;
+    const model = modelOptions.find((option) => option.value === form.car_model_id)?.label;
+
+    setPriceSuggestionVisible(true);
+    setGeneratingPriceSuggestion(true);
+    setPriceSuggestionError(null);
+    setPriceSuggestion(null);
+
+    try {
+      const prices = await generateAnnouncementPriceSuggestion({
+        brand,
+        model,
+        year: form.year,
+        price: form.price,
+        mileage: form.mileage,
+        mileage_unit: form.mileage_unit,
+        transmission: form.transmission,
+        drive_type: form.drive_type,
+        engine_capacity: hideEngineCapacity ? null : form.engine_capacity,
+        engine_type: form.engine_type,
+        description: form.description,
+      });
+
+      if (
+        prices &&
+        (prices.recommended_price != null || prices.min_price != null || prices.max_price != null)
+      ) {
+        setPriceSuggestion(prices);
+      } else {
+        setPriceSuggestionError(t('announcement.no_price_suggestion'));
+      }
+    } catch (err) {
+      setPriceSuggestionError(getErrorMessage(err));
+    } finally {
+      setGeneratingPriceSuggestion(false);
+    }
+  }, [brandOptions, config, form, hideEngineCapacity, modelOptions, t]);
+
+  const closePriceSuggestion = useCallback(() => {
+    setPriceSuggestionVisible(false);
+  }, []);
+
+  const applyPriceSuggestion = useCallback(
+    (price: number | string) => {
+      updateForm({ price: String(price) });
+      setPriceSuggestionVisible(false);
+    },
+    [updateForm],
+  );
+
+  const runTranslate = useCallback(
+    async (language: TranslationLanguage) => {
+      if (!form.description.trim()) {
+        return;
+      }
+
+      setTranslating((prev) => ({ ...prev, [language]: true }));
+      setError(null);
+
+      try {
+        const translated = await translateAnnouncementDescription(form.description, language);
+        updateTranslation(language, translated);
+      } catch (err) {
+        setError(getErrorMessage(err));
+      } finally {
+        setTranslating((prev) => ({ ...prev, [language]: false }));
+      }
+    },
+    [form.description, updateTranslation],
+  );
+
   const submit = useCallback(async () => {
     if (!config) {
       return false;
@@ -367,6 +471,11 @@ export function useCreateAnnouncement(announcementId?: number) {
     setStep(1);
     setForm(emptyForm());
     setError(null);
+    setPriceChanged(false);
+    setPriceSuggestion(null);
+    setPriceSuggestionError(null);
+    setPriceSuggestionVisible(false);
+    setTranslating({});
   }, []);
 
   return {
@@ -391,6 +500,7 @@ export function useCreateAnnouncement(announcementId?: number) {
     error,
     setError,
     updateForm,
+    updateTranslation,
     setBrand,
     setCountry,
     toggleFeature,
@@ -398,6 +508,16 @@ export function useCreateAnnouncement(announcementId?: number) {
     goNext,
     goBack,
     runGenerateDescription,
+    priceChanged,
+    generatingPriceSuggestion,
+    priceSuggestion,
+    priceSuggestionError,
+    priceSuggestionVisible,
+    runGeneratePriceSuggestion,
+    closePriceSuggestion,
+    applyPriceSuggestion,
+    translating,
+    runTranslate,
     submit,
     reset,
   };

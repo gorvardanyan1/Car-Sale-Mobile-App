@@ -5,6 +5,7 @@ import {
   mapAnnouncementToEditForm,
   parseAnnouncementDescription,
   parseAnnouncementFeatures,
+  parseAnnouncementTranslations,
   parseAdditionalImagePaths,
 } from '@/lib/announcements/mapAnnouncementToEditForm';
 import type { CreateAnnouncementFormState } from '@/types/announcement';
@@ -34,6 +35,9 @@ const editForm: CreateAnnouncementFormState = {
   additionalImages: [{ uri: 'file://extra.jpg', name: 'extra.jpg', type: 'image/jpeg' }],
   existingMainImagePath: null,
   existingAdditionalImagePaths: ['additional_images/keep.jpg'],
+  translationsEnabled: false,
+  translations: { am: '', ru: '' },
+  storePriceChange: false,
 };
 
 describe('mapAnnouncementToEditForm', () => {
@@ -43,6 +47,17 @@ describe('mapAnnouncementToEditForm', () => {
 
   it('parses stored feature flags', () => {
     expect(parseAnnouncementFeatures('{"feature_abs":"on"}')).toEqual({ abs: true });
+  });
+
+  it('parses armenian and russian translations from a multilingual description', () => {
+    expect(
+      parseAnnouncementTranslations('{"en":"English text","am":"Հայերեն","ru":"Русский"}'),
+    ).toEqual({ am: 'Հայերեն', ru: 'Русский' });
+  });
+
+  it('returns empty translations for a plain-text description', () => {
+    expect(parseAnnouncementTranslations('Just English text')).toEqual({ am: '', ru: '' });
+    expect(parseAnnouncementTranslations(null)).toEqual({ am: '', ru: '' });
   });
 
   it('parses additional image paths from json', () => {
@@ -84,6 +99,31 @@ describe('mapAnnouncementToEditForm', () => {
     expect(form.features).toEqual({ abs: true });
     expect(form.existingMainImagePath).toBe('main_images/old.jpg');
     expect(form.existingAdditionalImagePaths).toEqual(['additional_images/old-extra.jpg']);
+    expect(form.translationsEnabled).toBe(false);
+    expect(form.translations).toEqual({ am: '', ru: '' });
+    expect(form.storePriceChange).toBe(false);
+  });
+
+  it('enables translations when the stored description already has am/ru text', () => {
+    const form = mapAnnouncementToEditForm({
+      id: 9,
+      car_brand_id: 1,
+      car_model_id: 2,
+      country_id: 3,
+      place_id: 4,
+      year: 2020,
+      price: 15000,
+      currency_id: 1,
+      drive_type: 'fwd',
+      transmission: 'automatic',
+      horsepower: 150,
+      engine_capacity: 2,
+      mileage: { value: '12000', unit: 'km' },
+      description: '{"en":"Nice car","am":"Լավ մեքենա","ru":""}',
+    });
+
+    expect(form.translationsEnabled).toBe(true);
+    expect(form.translations).toEqual({ am: 'Լավ մեքենա', ru: '' });
   });
 });
 
@@ -100,5 +140,32 @@ describe('buildEditAnnouncementFormData', () => {
     expect(fields.additional_images_path).toEqual(editForm.additionalImages);
     expect(fields.additional_images_url).toEqual(['additional_images/keep.jpg']);
     expect(fields.feature_abs).toBe('on');
+    expect(fields.store_price_change).toBeUndefined();
+  });
+
+  it('includes store_price_change only when the user opted to record the price change', () => {
+    const fields = buildEditAnnouncementFormData({
+      announcementId: 9,
+      form: { ...editForm, storePriceChange: true },
+      subcategoryOptions: [],
+    });
+
+    expect(fields.store_price_change).toBe('1');
+  });
+
+  it('encodes description as a multilingual JSON blob when translations are enabled', () => {
+    const fields = buildEditAnnouncementFormData({
+      announcementId: 9,
+      form: {
+        ...editForm,
+        translationsEnabled: true,
+        translations: { am: 'Հայերեն', ru: 'Русский' },
+      },
+      subcategoryOptions: [],
+    });
+
+    expect(fields.description).toBe(
+      JSON.stringify({ en: 'Updated listing.', am: 'Հայերեն', ru: 'Русский' }),
+    );
   });
 });

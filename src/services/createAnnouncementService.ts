@@ -2,6 +2,7 @@ import { apiFetch, apiFormData } from '@/lib/api/client';
 import { buildCreateAnnouncementFormData } from '@/lib/announcements/buildCreateAnnouncementFormData';
 import { buildEditAnnouncementFormData } from '@/lib/announcements/buildEditAnnouncementFormData';
 import type {
+  AiPriceSuggestion,
   Announcement,
   CreateAnnouncementFormState,
   CreateFormConfig,
@@ -94,4 +95,43 @@ export async function generateAnnouncementDescription(
   );
 
   return response.data.description ?? '';
+}
+
+type GeneratePriceSuggestionParams = GenerateDescriptionParams & {
+  description?: string;
+};
+
+export async function generateAnnouncementPriceSuggestion(
+  params: GeneratePriceSuggestionParams,
+): Promise<AiPriceSuggestion | null> {
+  const query = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value !== undefined && value !== null && String(value).trim() !== '') {
+      query.set(key, String(value));
+    }
+  }
+
+  const response = await apiFetch<ApiResponse<{ prices: AiPriceSuggestion | null }>>(
+    `/announcements/ai/price-suggestion?${query.toString()}`,
+    { auth: true },
+  );
+
+  return response.data.prices ?? null;
+}
+
+export async function translateAnnouncementDescription(
+  text: string,
+  targetLanguage: 'am' | 'ru',
+): Promise<string> {
+  const response = await apiFetch<ApiResponse<{ translated_text: string; target_language: string }>>(
+    '/announcements/ai/translate',
+    {
+      auth: true,
+      method: 'POST',
+      body: { text, target_language: targetLanguage },
+    },
+  );
+
+  return response.data.translated_text ?? '';
 }

@@ -35,6 +35,9 @@ const baseForm: CreateAnnouncementFormState = {
   additionalImages: [],
   existingMainImagePath: null,
   existingAdditionalImagePaths: [],
+  translationsEnabled: false,
+  translations: { am: '', ru: '' },
+  storePriceChange: false,
 };
 
 const baseConfig: CreateFormConfig = {
@@ -105,5 +108,29 @@ describe('buildCreateAnnouncementFormData', () => {
     });
 
     expect(fields.engine_capacity).toBeUndefined();
+  });
+
+  it('encodes description as a multilingual JSON blob when translations are enabled', () => {
+    const fields = buildCreateAnnouncementFormData({
+      form: {
+        ...baseForm,
+        translationsEnabled: true,
+        translations: { am: 'Հայերեն նկարագրություն', ru: 'Русское описание' },
+      },
+      subcategoryOptions: baseConfig.subcategoryOptions,
+    });
+
+    expect(fields.description).toBe(
+      JSON.stringify({ en: 'Great car.', am: 'Հայերեն նկարագրություն', ru: 'Русское описание' }),
+    );
+  });
+
+  it('submits a plain description string when translations are disabled', () => {
+    const fields = buildCreateAnnouncementFormData({
+      form: baseForm,
+      subcategoryOptions: baseConfig.subcategoryOptions,
+    });
+
+    expect(fields.description).toBe('Great car.');
   });
 });
