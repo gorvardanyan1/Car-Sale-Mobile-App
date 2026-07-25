@@ -9,9 +9,12 @@ import {
   Flame,
   Gauge,
   Heart,
+  Pencil,
+  Share2,
   Trash2,
   Zap,
 } from 'lucide-react-native';
+import type { LucideIcon } from 'lucide-react-native';
 import { useState } from 'react';
 import { Image, Pressable, Share, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
@@ -191,34 +194,54 @@ export function MyAnnouncementCard({
         </View>
       </View>
 
-      <View style={styles.actions}>
-        {!isSold ? (
-          <MakeAsUrgent
-            isHurry={announcement.is_hurry}
-            announcementId={announcement.id}
-            urgentPriceCents={urgentPriceCents}
-            urgentFeatureAccess={urgentFeatureAccess}
-            onSuccess={() => onUrgentSuccess?.(announcement)}
-          />
-        ) : null}
-        {!isSold ? (
-          <ActionButton label={t('actions.edit')} onPress={() => onEdit(announcement)} tone="blue" />
-        ) : null}
-        <ActionButton label={t('actions.see')} onPress={() => onView(announcement)} tone="green" />
+      <View style={styles.primaryActions}>
         <ActionButton
-          label={shareMessage || t('my_announcements.share')}
-          onPress={() => void handleShare()}
-          tone="purple"
+          label={t('actions.see')}
+          icon={Eye}
+          onPress={() => onView(announcement)}
+          tone="green"
         />
         {!isSold ? (
           <ActionButton
-            label={t('my_announcements.mark_as_sold')}
-            onPress={() => setPendingAction('sold')}
-            tone="amber"
+            label={t('actions.edit')}
+            icon={Pencil}
+            onPress={() => onEdit(announcement)}
+            tone="blue"
           />
         ) : null}
         <ActionButton
+          label={shareMessage || t('my_announcements.share')}
+          icon={Share2}
+          onPress={() => void handleShare()}
+          tone="purple"
+        />
+      </View>
+
+      {!isSold ? (
+        <ActionButton
+          label={t('my_announcements.mark_as_sold')}
+          icon={CircleDollarSign}
+          onPress={() => setPendingAction('sold')}
+          tone="amber"
+          full
+        />
+      ) : null}
+
+      <View style={styles.secondaryActions}>
+        {!isSold ? (
+          <View style={styles.urgentSlot}>
+            <MakeAsUrgent
+              isHurry={announcement.is_hurry}
+              announcementId={announcement.id}
+              urgentPriceCents={urgentPriceCents}
+              urgentFeatureAccess={urgentFeatureAccess}
+              onSuccess={() => onUrgentSuccess?.(announcement)}
+            />
+          </View>
+        ) : null}
+        <ActionButton
           label={t('actions.delete')}
+          icon={Trash2}
           onPress={() => setPendingAction('delete')}
           tone="red"
         />
@@ -252,12 +275,16 @@ export function MyAnnouncementCard({
 
 function ActionButton({
   label,
+  icon: Icon,
   onPress,
   tone,
+  full = false,
 }: {
   label: string;
+  icon: LucideIcon;
   onPress: () => void;
   tone: 'green' | 'purple' | 'amber' | 'red' | 'blue';
+  full?: boolean;
 }) {
   const toneStyle = {
     green: styles.actionGreen,
@@ -275,8 +302,21 @@ function ActionButton({
     blue: styles.actionBlueText,
   }[tone];
 
+  const toneIconColor = {
+    green: '#4ADE80',
+    purple: '#C084FC',
+    amber: '#FBBF24',
+    red: '#F87171',
+    blue: colors.primaryLight,
+  }[tone];
+
   return (
-    <Pressable onPress={onPress} style={[styles.actionButton, toneStyle]}>
+    <Pressable
+      onPress={onPress}
+      style={[styles.actionButton, toneStyle, full && styles.actionButtonFull]}
+      accessibilityRole="button"
+    >
+      <Icon color={toneIconColor} size={15} />
       <Text style={[styles.actionText, toneTextStyle]} numberOfLines={1}>
         {label}
       </Text>
@@ -437,24 +477,41 @@ const styles = StyleSheet.create({
     color: colors.textDisabled,
     fontSize: 11,
   },
-  actions: {
+  primaryActions: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.borderSubtle,
     paddingTop: spacing.sm,
   },
+  secondaryActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  urgentSlot: {
+    flex: 1,
+    minWidth: 0,
+  },
   actionButton: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 40,
     paddingHorizontal: spacing.sm,
-    paddingVertical: 8,
     borderRadius: radii.md,
     borderWidth: 1,
+  },
+  actionButtonFull: {
+    width: '100%',
   },
   actionText: {
     ...typography.caption,
     fontWeight: '700',
     fontSize: 12,
+    flexShrink: 1,
   },
   actionGreen: {
     backgroundColor: 'rgba(34, 197, 94, 0.12)',

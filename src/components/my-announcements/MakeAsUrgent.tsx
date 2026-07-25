@@ -106,8 +106,10 @@ export function MakeAsUrgent({
         accessibilityRole="button"
         testID="my-announcement-urgent-button-locked"
       >
-        <Lock color={colors.textDisabled} size={16} />
-        <Text style={styles.buttonLockedText}>{t('my_announcements.mark_urgent')}</Text>
+        <Lock color={colors.textDisabled} size={15} />
+        <Text style={styles.buttonLockedText} numberOfLines={1}>
+          {t('my_announcements.mark_urgent')}
+        </Text>
       </Pressable>
     );
   }
@@ -127,13 +129,17 @@ export function MakeAsUrgent({
       >
         {isActive ? (
           <LinearGradient colors={[...gradients.urgent]} style={styles.activeGradient}>
-            <Flame color={colors.white} size={16} fill={colors.white} />
-            <Text style={styles.buttonActiveText}>{t('my_announcements.urgent_active')}</Text>
+            <Flame color={colors.white} size={15} fill={colors.white} />
+            <Text style={styles.buttonActiveText} numberOfLines={1}>
+              {t('my_announcements.urgent_active')}
+            </Text>
           </LinearGradient>
         ) : (
           <>
-            <Flame color="#FB923C" size={16} />
-            <Text style={styles.buttonInactiveText}>{t('my_announcements.mark_urgent')}</Text>
+            <Flame color="#FB923C" size={15} />
+            <Text style={styles.buttonInactiveText} numberOfLines={1}>
+              {t('my_announcements.mark_urgent')}
+            </Text>
           </>
         )}
       </Pressable>
@@ -218,17 +224,20 @@ export function MakeAsUrgent({
 
 const styles = StyleSheet.create({
   button: {
+    flex: 1,
     borderRadius: radii.md,
     overflow: 'hidden',
-    minHeight: 40,
+    height: 40,
     justifyContent: 'center',
+    minWidth: 0,
   },
   buttonInactive: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 8,
+    justifyContent: 'center',
+    gap: 4,
+    height: '100%',
+    paddingHorizontal: spacing.xs,
     backgroundColor: 'rgba(249, 115, 22, 0.12)',
     borderWidth: 1,
     borderColor: 'rgba(249, 115, 22, 0.25)',
@@ -238,29 +247,33 @@ const styles = StyleSheet.create({
     color: '#FB923C',
     fontWeight: '700',
     fontSize: 12,
+    flexShrink: 1,
   },
   buttonActive: {
-    flex: 0,
+    flex: 1,
   },
   activeGradient: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 8,
+    justifyContent: 'center',
+    gap: 4,
+    height: 40,
+    paddingHorizontal: spacing.xs,
   },
   buttonActiveText: {
     ...typography.caption,
     color: colors.white,
     fontWeight: '800',
     fontSize: 12,
+    flexShrink: 1,
   },
   buttonLocked: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 8,
+    justifyContent: 'center',
+    gap: 4,
+    height: '100%',
+    paddingHorizontal: spacing.xs,
     backgroundColor: colors.surfaceMuted,
     borderWidth: 1,
     borderColor: colors.border,
@@ -271,6 +284,7 @@ const styles = StyleSheet.create({
     color: colors.textDisabled,
     fontWeight: '700',
     fontSize: 12,
+    flexShrink: 1,
   },
   overlay: {
     flex: 1,
