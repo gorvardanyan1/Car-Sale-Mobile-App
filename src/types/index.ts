@@ -30,6 +30,8 @@ export type RegisterPayload = {
   password: string;
   password_confirmation: string;
   device_name?: string;
+  /** ISO `YYYY-MM-DD`. Optional; drives the yearly birthday points bonus. */
+  birth_date?: string;
 };
 
 export type ApiResponse<T> = {
