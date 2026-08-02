@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDebounce } from '@/hooks/useDebounce';
 import { getErrorMessage } from '@/lib/api/errors';
+import { followDealer, unfollowDealer } from '@/services/dealerAccountService';
 import { fetchDealerDetail } from '@/services/dealerService';
 import type { Announcement, PaginationMeta } from '@/types/announcement';
 import type { DealerDetailMeta, DealerProfile, DealerProfileTab } from '@/types/dealer';
@@ -13,6 +14,8 @@ const emptyMeta: DealerDetailMeta = {
   per_page: 15,
   total: 0,
   is_owner: false,
+  is_followed: false,
+  followers_count: 0,
 };
 
 export function useDealerProfile(dealerId: number) {
@@ -26,6 +29,7 @@ export function useDealerProfile(dealerId: number) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isTogglingFollow, setIsTogglingFollow] = useState(false);
 
   const debouncedSearch = useDebounce(search, 500);
   const skipSearchEffect = useRef(true);
@@ -98,11 +102,36 @@ export function useDealerProfile(dealerId: number) {
     void loadPage({ page: meta.current_page + 1, replace: false });
   }, [loadPage, loading, loadingMore, meta.current_page, meta.last_page]);
 
+  const toggleFollow = useCallback(async () => {
+    if (!isAuthenticated || isTogglingFollow) {
+      return;
+    }
+
+    setIsTogglingFollow(true);
+    const wasFollowed = meta.is_followed ?? false;
+
+    try {
+      const result = wasFollowed ? await unfollowDealer(dealerId) : await followDealer(dealerId);
+      setMeta((prev) => ({
+        ...prev,
+        is_followed: result.is_followed,
+        followers_count: result.followers_count,
+      }));
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setIsTogglingFollow(false);
+    }
+  }, [dealerId, isAuthenticated, isTogglingFollow, meta.is_followed]);
+
   return {
     dealer,
     listings,
     meta: meta as PaginationMeta & { is_owner?: boolean },
     isOwner: meta.is_owner ?? false,
+    isFollowed: meta.is_followed ?? false,
+    followersCount: meta.followers_count ?? 0,
+    isTogglingFollow,
     search,
     activeTab,
     loading,
@@ -114,5 +143,6 @@ export function useDealerProfile(dealerId: number) {
     setActiveTab,
     refresh,
     loadMore,
+    toggleFollow,
   };
 }

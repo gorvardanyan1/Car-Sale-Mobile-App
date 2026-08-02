@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { BadgeCheck, ChevronLeft, Clock, MapPin, MessageCircle } from 'lucide-react-native';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { BadgeCheck, ChevronLeft, Clock, Heart, MapPin, MessageCircle } from 'lucide-react-native';
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -15,16 +15,26 @@ type DealerProfileHeaderProps = {
   dealer: DealerProfile;
   canMessage: boolean;
   messaging?: boolean;
+  canFollow?: boolean;
+  isFollowed?: boolean;
+  followersCount?: number;
+  isTogglingFollow?: boolean;
   onBack?: () => void;
   onMessage?: () => void;
+  onToggleFollow?: () => void;
 };
 
 export function DealerProfileHeader({
   dealer,
   canMessage,
   messaging = false,
+  canFollow = false,
+  isFollowed = false,
+  followersCount,
+  isTogglingFollow = false,
   onBack,
   onMessage,
+  onToggleFollow,
 }: DealerProfileHeaderProps) {
   const { t } = useTranslation();
   const coverUrl = getDealerCoverUrl(dealer.feature_image);
@@ -87,21 +97,56 @@ export function DealerProfileHeader({
                 {t('dealer.joined')} {dealer.joined_date}
               </Text>
             </View>
+            {followersCount != null ? (
+              <View style={styles.metaItem}>
+                <Heart color={colors.primaryLight} size={14} />
+                <Text style={styles.metaText}>
+                  {followersCount} {t('dealer.followers')}
+                </Text>
+              </View>
+            ) : null}
           </View>
 
-          {canMessage ? (
-            <Pressable
-              onPress={onMessage}
-              disabled={messaging}
-              style={[styles.messageButton, messaging && styles.messageButtonDisabled]}
-              testID="dealer-message-button"
-            >
-              <MessageCircle color={colors.white} size={18} />
-              <Text style={styles.messageButtonText}>
-                {messaging ? t('common.loading') : t('dealer.message')}
-              </Text>
-            </Pressable>
-          ) : null}
+          <View style={styles.actionsRow}>
+            {canFollow ? (
+              <Pressable
+                onPress={onToggleFollow}
+                disabled={isTogglingFollow}
+                style={[
+                  styles.followButton,
+                  isFollowed ? styles.followButtonActive : styles.followButtonInactive,
+                ]}
+                testID="dealer-follow-button"
+              >
+                {isTogglingFollow ? (
+                  <ActivityIndicator color={isFollowed ? colors.white : colors.primaryLight} size="small" />
+                ) : (
+                  <Heart
+                    color={isFollowed ? colors.white : colors.primaryLight}
+                    size={16}
+                    fill={isFollowed ? colors.white : 'transparent'}
+                  />
+                )}
+                <Text style={isFollowed ? styles.followButtonActiveText : styles.followButtonInactiveText}>
+                  {isFollowed ? t('dealer.following') : t('dealer.follow')}
+                </Text>
+              </Pressable>
+            ) : null}
+
+            {canMessage ? (
+              <Pressable
+                onPress={onMessage}
+                disabled={messaging}
+                style={[styles.messageButton, messaging && styles.messageButtonDisabled]}
+                testID="dealer-message-button"
+              >
+                <MessageCircle color={colors.white} size={18} />
+                <Text style={styles.messageButtonText}>
+                  {messaging ? t('common.loading') : t('dealer.message')}
+                </Text>
+              </Pressable>
+            ) : null}
+          </View>
         </View>
 
         <View style={styles.statsRow}>
@@ -238,8 +283,13 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textMuted,
   },
-  messageButton: {
+  actionsRow: {
+    flexDirection: 'row',
+    gap: spacing.sm,
     marginTop: 4,
+  },
+  messageButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -252,6 +302,34 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   messageButtonText: {
+    ...typography.caption,
+    color: colors.white,
+    fontWeight: '700',
+  },
+  followButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: radii.button,
+    paddingVertical: 12,
+    borderWidth: 1,
+  },
+  followButtonInactive: {
+    backgroundColor: 'transparent',
+    borderColor: colors.primary,
+  },
+  followButtonActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  followButtonInactiveText: {
+    ...typography.caption,
+    color: colors.primaryLight,
+    fontWeight: '700',
+  },
+  followButtonActiveText: {
     ...typography.caption,
     color: colors.white,
     fontWeight: '700',
