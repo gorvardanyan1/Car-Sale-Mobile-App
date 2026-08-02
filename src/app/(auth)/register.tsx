@@ -10,6 +10,7 @@ import { TextField } from '@/components/ui/TextField';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMobileAuthConfig } from '@/hooks/useMobileAuthConfig';
 import { firstFieldError, getErrorMessage, mapApiErrors } from '@/lib/api/errors';
+import { formatBirthDateInput, isValidBirthDate } from '@/lib/profile/birthDate';
 import { colors, spacing, typography } from '@/theme';
 import type { AccountType, FieldErrors } from '@/types';
 
@@ -23,6 +24,7 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [passwordConfirmation, setPasswordConfirmation] = useState('');
+  const [birthDate, setBirthDate] = useState('');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -32,8 +34,14 @@ export default function RegisterScreen() {
     setAccountType(value);
     setName('');
     setLastName('');
+    // A dealer account is a company, so it has no birthday to reward.
+    if (value === 'dealer') {
+      setBirthDate('');
+    }
     setFieldErrors({});
   };
+
+  const isIndividual = !dealerAuthEnabled || accountType === 'user';
 
   const handleSubmit = async () => {
     setFieldErrors({});
@@ -41,6 +49,16 @@ export default function RegisterScreen() {
 
     if (!acceptedTerms) {
       setFormError(t('mobile.errors.accept_terms'));
+      return;
+    }
+
+    // Birth date is optional, but if something was typed it must be a real date
+    // — otherwise the API would reject it after a pointless round trip.
+    const trimmedBirthDate = birthDate.trim();
+    const hasBirthDate = isIndividual && trimmedBirthDate.length > 0;
+
+    if (hasBirthDate && !isValidBirthDate(trimmedBirthDate)) {
+      setFieldErrors({ birth_date: t('mobile.errors.invalid_birth_date') });
       return;
     }
 
@@ -54,6 +72,7 @@ export default function RegisterScreen() {
         email: email.trim(),
         password,
         password_confirmation: passwordConfirmation,
+        birth_date: hasBirthDate ? trimmedBirthDate : undefined,
       });
     } catch (error) {
       setFieldErrors(mapApiErrors(error));
@@ -112,6 +131,20 @@ export default function RegisterScreen() {
             </View>
           </View>
         )}
+
+        {isIndividual ? (
+          <TextField
+            label={t('profile.birth_date')}
+            value={birthDate}
+            onChangeText={(value) => setBirthDate(formatBirthDateInput(value))}
+            placeholder="YYYY-MM-DD"
+            keyboardType="number-pad"
+            maxLength={10}
+            showOptionalHint
+            testID="register-birth-date"
+            error={firstFieldError(fieldErrors, 'birth_date')}
+          />
+        ) : null}
 
         <TextField
           label={t('auth.email_address')}
