@@ -1,8 +1,10 @@
 import {
   Bell,
+  Building2,
   Car,
   ChevronRight,
   CreditCard,
+  Gift,
   Globe,
   HelpCircle,
   Lock,
@@ -11,6 +13,7 @@ import {
   Settings as SettingsIcon,
   Shield,
   User,
+  Users,
 } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { ReactNode, useMemo, useState } from 'react';
@@ -59,7 +62,8 @@ export default function SettingsScreen() {
   const currentLanguage = (i18n.language as SupportedLanguage) || 'en';
   const languageLabel = t(LANGUAGE_LABEL_KEYS[currentLanguage] ?? LANGUAGE_LABEL_KEYS.en);
 
-  const isIndividualUser = user.roles.includes('user');
+  const isIndividualUser = user?.roles.includes('user') ?? false;
+  const isDealer = user?.roles.includes('dealer') ?? false;
 
   const sections = useMemo<SettingsSection[]>(
     () => [
@@ -83,6 +87,22 @@ export default function SettingsScreen() {
                 },
               ]
             : []),
+          ...(isDealer
+            ? [
+                {
+                  id: 'dealer-profile',
+                  labelKey: 'user.dealer_profile',
+                  icon: <Building2 color="#60A5FA" size={16} />,
+                  onPress: () => router.push('/settings/dealer-profile'),
+                },
+                {
+                  id: 'dealer-followers',
+                  labelKey: 'dealer.followers_title',
+                  icon: <Users color="#4ADE80" size={16} />,
+                  onPress: () => router.push('/settings/dealer-followers'),
+                },
+              ]
+            : []),
           {
             id: 'edit',
             labelKey: 'mobile.settings.edit_profile',
@@ -100,6 +120,12 @@ export default function SettingsScreen() {
             labelKey: 'user.billing',
             icon: <CreditCard color="#4ADE80" size={16} />,
             onPress: () => router.push('/settings/billing'),
+          },
+          {
+            id: 'referrals',
+            labelKey: 'referral.nav_link',
+            icon: <Gift color="#FACC15" size={16} />,
+            onPress: () => router.push('/settings/referrals'),
           },
           {
             id: 'notifications',
@@ -148,7 +174,7 @@ export default function SettingsScreen() {
         ],
       },
     ],
-    [isIndividualUser, languageLabel, router, wantedSearchUnread],
+    [isDealer, isIndividualUser, languageLabel, router, wantedSearchUnread],
   );
 
   const handleSignOut = async () => {

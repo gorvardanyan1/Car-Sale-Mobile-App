@@ -52,7 +52,7 @@ export function ScreenHeader({
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: spacing.sm,
+    paddingTop: spacing.md,
     paddingBottom: spacing.md,
   },
   row: {
@@ -81,12 +81,13 @@ const styles = StyleSheet.create({
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
-    marginBottom: spacing.sm,
+    gap: 4,
+    marginBottom: spacing.md,
     alignSelf: 'flex-start',
   },
   backText: {
-    ...typography.body,
+    ...typography.sectionTitle,
+    fontSize: 16,
     color: colors.textSecondary,
     fontWeight: '600',
   },

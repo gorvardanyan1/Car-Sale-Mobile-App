@@ -2,7 +2,7 @@ import { config } from '@/constants/config';
 import { getAppScheme } from '@/lib/payment/getAppScheme';
 import * as Linking from 'expo-linking';
 
-export type PaymentFeatureKey = 'urgent' | 'wanted_searches';
+export type PaymentFeatureKey = 'urgent' | 'wanted_searches' | 'dealer_verification';
 
 /** Web app origin (no /api suffix) derived from EXPO_PUBLIC_API_URL. */
 export function getWebAppOrigin(): string {

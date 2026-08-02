@@ -20,6 +20,7 @@
     "@react-navigation/bottom-tabs": "^7.18.3",
     "expo": "^57",
     "expo-build-properties": "~57.0.5",
+    "expo-clipboard": "~57.0.1",
     "expo-constants": "~57.0.5",
     "expo-device": "~57.0.1",
     "expo-image-manipulator": "~57.0.4",

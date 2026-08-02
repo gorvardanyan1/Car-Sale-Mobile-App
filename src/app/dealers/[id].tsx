@@ -91,8 +91,13 @@ export default function DealerProfileScreen() {
           dealer={profile.dealer}
           canMessage={canMessage}
           messaging={messaging}
+          canFollow={isAuthenticated && !isOwnProfile}
+          isFollowed={profile.isFollowed}
+          followersCount={profile.followersCount}
+          isTogglingFollow={profile.isTogglingFollow}
           onBack={goBack}
           onMessage={() => void handleMessage()}
+          onToggleFollow={() => void profile.toggleFollow()}
         />
 
         <DealerProfileTabs
@@ -127,13 +132,19 @@ export default function DealerProfileScreen() {
     canMessage,
     goBack,
     handleMessage,
+    isAuthenticated,
+    isOwnProfile,
     listingsCount,
     messaging,
     profile.activeTab,
     profile.dealer,
+    profile.followersCount,
+    profile.isFollowed,
+    profile.isTogglingFollow,
     profile.search,
     profile.setActiveTab,
     profile.setSearch,
+    profile.toggleFollow,
     t,
   ]);
 
