@@ -709,5 +709,9 @@ export const am = {
   "mobile.chat.connected": "Միացված",
   "mobile.chat.disconnected": "Անջատված",
   "mobile.chat.delete_title": "Ջնջել զրույցը",
-  "mobile.chat.delete_confirm": "Սա կջնջի զրույցն ու բոլոր հաղորդագրությունները վերջնականապես։"
+  "mobile.chat.delete_confirm": "Սա կջնջի զրույցն ու բոլոր հաղորդագրությունները վերջնականապես։",
+  "mobile.chat.translate": "Թարգմանել",
+  "mobile.chat.translating": "Թարգմանվում է…",
+  "mobile.chat.show_original": "Ցույց տալ բնօրինակը",
+  "mobile.chat.translate_failed": "Թարգմանությունը ձախողվեց։ Կրկին փորձեք։"
 } as const;

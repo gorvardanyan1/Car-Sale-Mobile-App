@@ -709,5 +709,9 @@ export const ru = {
   "mobile.chat.connected": "Подключено",
   "mobile.chat.disconnected": "Не в сети",
   "mobile.chat.delete_title": "Удалить диалог",
-  "mobile.chat.delete_confirm": "Диалог и все сообщения будут удалены без возможности восстановления."
+  "mobile.chat.delete_confirm": "Диалог и все сообщения будут удалены без возможности восстановления.",
+  "mobile.chat.translate": "Перевести",
+  "mobile.chat.translating": "Перевод…",
+  "mobile.chat.show_original": "Показать оригинал",
+  "mobile.chat.translate_failed": "Не удалось перевести. Попробуйте снова."
 } as const;
