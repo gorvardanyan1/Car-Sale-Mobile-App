@@ -1,5 +1,23 @@
 /** @type {import('expo/config').ExpoConfig} */
+const fs = require('fs');
+const path = require('path');
+
 const appJson = require('./app.json');
+
+/**
+ * Android push is delivered by Firebase Cloud Messaging, not by Expo directly —
+ * exp.host only relays to FCM — so an Android build without this file produces
+ * tokens that never deliver. It is gitignored (it carries project-specific keys)
+ * and therefore may be absent on a fresh clone; referencing a missing path in
+ * app.json fails the build outright, so it is wired in only when present.
+ * EAS builds get it from an EAS file environment variable of the same name.
+ */
+function googleServicesFile() {
+  const configured = process.env.GOOGLE_SERVICES_JSON?.trim();
+  const candidate = configured || path.join(__dirname, 'google-services.json');
+
+  return fs.existsSync(candidate) ? candidate : undefined;
+}
 
 /**
  * EAS Build reads EXPO_PUBLIC_* from eas.json `env` (or local .env in dev).
@@ -78,6 +96,7 @@ module.exports = () => {
     android: {
       ...appJson.expo.android,
       usesCleartextTraffic: false,
+      ...(googleServicesFile() ? { googleServicesFile: googleServicesFile() } : {}),
     },
   };
 };

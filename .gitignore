@@ -40,3 +40,12 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Firebase Android push credential — carries project-specific keys. Supplied to
+# EAS via the GOOGLE_SERVICES_JSON file environment variable (see app.config.js).
+/google-services.json
+
+# EAS credentials mapping and the FCM V1 service account private key it points
+# at. Never commit these — the key can send push to every install of this app.
+/credentials.json
+/certs/

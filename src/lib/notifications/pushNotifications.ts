@@ -2,7 +2,7 @@ import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 import { isRemotePushSupported } from '@/lib/notifications/isRemotePushSupported';
-import { setStoredPushToken } from '@/lib/notifications/pushTokenStorage';
+import { getStoredPushToken, setStoredPushToken } from '@/lib/notifications/pushTokenStorage';
 import { registerPushToken } from '@/services/pushTokenService';
 import type { PushPlatform } from '@/services/pushTokenService';
 
@@ -47,6 +47,35 @@ async function loadDeviceModule(): Promise<DeviceModule | null> {
   }
 }
 
+/**
+ * Android 8+ delivers every notification through a channel, and a channel that
+ * the app never declares is created implicitly at DEFAULT importance — which
+ * means no heads-up banner and no sound, regardless of the `priority: high` and
+ * `sound: default` the backend sends (see ExpoPushService). Channel importance
+ * wins over the message payload, so this must exist for chat pushes to actually
+ * surface. Importance is fixed at creation time: once a channel id exists on a
+ * device, changing these values here does nothing until the app is reinstalled,
+ * so bump CHAT_CHANNEL_ID rather than editing it in place.
+ */
+export const CHAT_CHANNEL_ID = 'chat-messages';
+
+async function configureAndroidChannels(
+  Notifications: NotificationsModule,
+): Promise<void> {
+  if (Platform.OS !== 'android') {
+    return;
+  }
+
+  await Notifications.setNotificationChannelAsync(CHAT_CHANNEL_ID, {
+    name: 'Chat messages',
+    importance: Notifications.AndroidImportance.MAX,
+    sound: 'default',
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#3B82F6',
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
+  });
+}
+
 export async function configureForegroundNotifications(): Promise<boolean> {
   const Notifications = await loadNotificationsModule();
 
@@ -55,14 +84,21 @@ export async function configureForegroundNotifications(): Promise<boolean> {
   }
 
   Notifications.setNotificationHandler({
+    // `shouldShowAlert` is deprecated in expo-notifications 57 in favour of the
+    // banner/list split below.
     handleNotification: async () => ({
-      shouldShowAlert: true,
       shouldPlaySound: true,
       shouldSetBadge: true,
       shouldShowBanner: true,
       shouldShowList: true,
     }),
   });
+
+  try {
+    await configureAndroidChannels(Notifications);
+  } catch {
+    // A channel failure must not stop the handler above from being installed.
+  }
 
   return true;
 }
@@ -112,7 +148,13 @@ export async function getExpoPushToken(): Promise<string | null> {
     );
 
     return token.data;
-  } catch {
+  } catch (error) {
+    // On Android this is the failure mode when the build has no FCM V1
+    // credential (missing google-services.json / EAS credential): the token
+    // request throws and push silently never works. Swallowing it without a
+    // trace made that indistinguishable from "no permission", so log it.
+    console.warn('[push] Failed to obtain Expo push token', error);
+
     return null;
   }
 }
@@ -130,6 +172,12 @@ export async function syncPushTokenWithBackend(deviceName?: string): Promise<str
 
   if (!token) {
     return null;
+  }
+
+  // Callers re-sync on every foreground to catch a rotated token, so skip the
+  // request when the backend already has this exact one.
+  if ((await getStoredPushToken()) === token) {
+    return token;
   }
 
   await registerPushToken(token, resolvePushPlatform(), deviceName);

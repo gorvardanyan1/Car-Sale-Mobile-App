@@ -709,5 +709,9 @@ export const en = {
   "mobile.chat.connected": "Connected",
   "mobile.chat.disconnected": "Offline",
   "mobile.chat.delete_title": "Delete conversation",
-  "mobile.chat.delete_confirm": "This will permanently delete the conversation and all messages."
+  "mobile.chat.delete_confirm": "This will permanently delete the conversation and all messages.",
+  "mobile.chat.translate": "Translate",
+  "mobile.chat.translating": "Translating…",
+  "mobile.chat.show_original": "Show original",
+  "mobile.chat.translate_failed": "Translation failed. Please try again."
 } as const;

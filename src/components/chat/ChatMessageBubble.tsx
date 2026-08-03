@@ -3,6 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { colors, radii, spacing, typography } from '@/theme';
 import { formatChatTime } from '@/lib/chat/conversationDisplay';
 import type { ChatMessageShape } from '@/types/chat';
+import { ChatMessageTranslate } from './ChatMessageTranslate';
 
 type Props = {
   message: ChatMessageShape;
@@ -22,6 +23,7 @@ export function ChatMessageBubble({ message, isMine }: Props) {
           {time}
         </Text>
       </View>
+      <ChatMessageTranslate text={message.text} align={isMine ? 'right' : 'left'} />
     </View>
   );
 }

@@ -27,7 +27,8 @@
       },
       "package": "com.autohayq.carsale",
       "predictiveBackGestureEnabled": false,
-      "usesCleartextTraffic": false
+      "usesCleartextTraffic": false,
+      "permissions": ["android.permission.POST_NOTIFICATIONS"]
     },
     "web": {
       "favicon": "./assets/favicon.png",

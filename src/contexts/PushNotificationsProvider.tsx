@@ -1,5 +1,6 @@
 import { useRouter } from 'expo-router';
 import { type ReactNode, useEffect, useRef } from 'react';
+import { AppState } from 'react-native';
 
 import { useAuth } from '@/contexts/AuthContext';
 import { isRemotePushSupported } from '@/lib/notifications/isRemotePushSupported';
@@ -83,8 +84,27 @@ export function PushNotificationsProvider({ children }: { children: ReactNode })
       }
     })();
 
+    // Expo can rotate the FCM registration behind a token, and a token the
+    // backend never learned about is indistinguishable from having no token at
+    // all — the user just stops receiving chat pushes. Re-syncing whenever the
+    // app returns to the foreground repairs that without any user action.
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') {
+        return;
+      }
+
+      void (async () => {
+        const token = await syncPushTokenWithBackend();
+
+        if (!cancelled && token) {
+          activeTokenRef.current = token;
+        }
+      })();
+    });
+
     return () => {
       cancelled = true;
+      subscription.remove();
     };
   }, [isAuthenticated, user?.id]);
 
