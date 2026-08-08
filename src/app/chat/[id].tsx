@@ -16,8 +16,10 @@ import { Pressable } from 'react-native';
 
 import { ChatInput } from '@/components/chat/ChatInput';
 import { ChatMessageBubble } from '@/components/chat/ChatMessageBubble';
+import { ChatTypingIndicator } from '@/components/chat/ChatTypingIndicator';
 import { useConversations } from '@/hooks/useConversations';
 import { useChatThread } from '@/hooks/useChatThread';
+import { useTypingEmitter } from '@/hooks/useTypingEmitter';
 import { useChatSocket } from '@/contexts/ChatSocketContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { getConversationDisplay } from '@/lib/chat/conversationDisplay';
@@ -29,14 +31,31 @@ export default function ChatThreadScreen() {
   const { t } = useTranslation();
   const router = useRouter();
   const { user } = useAuth();
-  const { connected, isUserOnline, joinConversation, joinConversationById, leaveConversation } = useChatSocket();
+  const {
+    connected,
+    isUserOnline,
+    joinConversation,
+    joinConversationById,
+    leaveConversation,
+    typingByConversation,
+    chatSettings,
+  } = useChatSocket();
   const { conversations } = useConversations();
   const { messages, isLoading, error, isSending, sendError, sendMessage } = useChatThread(
     id ?? null,
   );
+  const { handleTextChange, stopTyping } = useTypingEmitter(id ?? null);
+
+  const partnerTyping =
+    chatSettings.typingIndicatorEnabled && id != null && typingByConversation[id] != null;
 
   const flatListRef = useRef<FlatList<ChatMessageShape>>(null);
   const [partnerOnline, setPartnerOnline] = useState(false);
+  const [replyTo, setReplyTo] = useState<ChatMessageShape | null>(null);
+  // A quote only makes sense inside the thread it came from. Derived rather
+  // than reset in an effect, so switching threads never shows a stale quote
+  // for the render before the effect would have run.
+  const activeReplyTo = replyTo && replyTo.conversationId === id ? replyTo : null;
   const joinedRef = useRef<string | null>(null);
 
   const conversation = id ? conversations.find((c) => c._id === id) : undefined;
@@ -115,16 +134,32 @@ export default function ChatThreadScreen() {
 
   // Scroll to bottom when messages change
   useEffect(() => {
-    if (messages.length > 0) {
+    if (messages.length > 0 || partnerTyping) {
       setTimeout(() => {
         flatListRef.current?.scrollToEnd({ animated: true });
       }, 100);
     }
-  }, [messages.length]);
+    // The typing bubble grows the list too — keep it in view.
+  }, [messages.length, partnerTyping]);
 
   const handleSend = async (text: string) => {
-    await sendMessage(text);
+    const pendingReplyTo = activeReplyTo;
+    setReplyTo(null);
+    await sendMessage(text, pendingReplyTo?._id ?? null);
   };
+
+  const handleReply = useCallback((message: ChatMessageShape) => {
+    setReplyTo(message);
+  }, []);
+
+  const handleJumpToMessage = useCallback(
+    (messageId: string) => {
+      const index = messages.findIndex((m) => m._id === messageId);
+      if (index < 0) return;
+      flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 });
+    },
+    [messages],
+  );
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -143,9 +178,15 @@ export default function ChatThreadScreen() {
             ) : (
               <WifiOff size={10} color={colors.error} />
             )}
-            <Text style={styles.statusText}>
-              {partnerOnline ? t('chat.online') : t('chat.offline')}
-            </Text>
+            {chatSettings.presenceEnabled ? (
+              <Text style={styles.statusText}>
+                {partnerOnline ? t('chat.online') : t('chat.offline')}
+              </Text>
+            ) : (
+              <Text style={styles.statusText}>
+                {connected ? t('mobile.chat.connected') : t('mobile.chat.disconnected')}
+              </Text>
+            )}
           </View>
         </View>
       </View>
@@ -172,10 +213,22 @@ export default function ChatThreadScreen() {
               <ChatMessageBubble
                 message={item}
                 isMine={Number(item.senderId) === Number(user?.id)}
+                currentUserId={user?.id}
+                onReply={handleReply}
+                onJumpToMessage={handleJumpToMessage}
               />
             )}
             contentContainerStyle={styles.messageList}
             showsVerticalScrollIndicator={false}
+            ListFooterComponent={partnerTyping ? <ChatTypingIndicator /> : null}
+            // A quoted message may be far up the thread and not yet measured.
+            onScrollToIndexFailed={({ index }) => {
+              flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
+              setTimeout(
+                () => flatListRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 }),
+                120,
+              );
+            }}
             onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
             ListEmptyComponent={
               <View style={styles.emptyMessages}>
@@ -189,7 +242,17 @@ export default function ChatThreadScreen() {
           <Text style={styles.sendErrorText}>{t('chat.send_failed')}</Text>
         ) : null}
 
-        <ChatInput onSend={handleSend} isSending={isSending} disabled={!connected} />
+        <ChatInput
+          onSend={handleSend}
+          isSending={isSending}
+          disabled={!connected}
+          onTextChange={handleTextChange}
+          onStoppedTyping={stopTyping}
+          maxLength={chatSettings.messageMaxLength}
+          replyTo={activeReplyTo}
+          replyToIsMine={Number(activeReplyTo?.senderId) === Number(user?.id)}
+          onCancelReply={() => setReplyTo(null)}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

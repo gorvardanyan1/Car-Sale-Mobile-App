@@ -1,5 +1,6 @@
 import { apiFetch, ApiClientError } from '@/lib/api/client';
 import type { SupportedLanguage } from '@/i18n';
+import type { ApiResponse } from '@/types';
 
 export class ChatTranslateApiError extends Error {
   constructor(
@@ -11,11 +12,9 @@ export class ChatTranslateApiError extends Error {
   }
 }
 
-type TranslateChatMessageResponse = {
-  success: boolean;
+type TranslateChatMessagePayload = {
   translated_text?: string;
   target_language?: string;
-  message?: string;
 };
 
 export async function translateChatMessage(
@@ -23,17 +22,22 @@ export async function translateChatMessage(
   targetLanguage: SupportedLanguage,
 ): Promise<string> {
   try {
-    const response = await apiFetch<TranslateChatMessageResponse>('/chat/messages/translate', {
-      method: 'POST',
-      auth: true,
-      body: { text, target_language: targetLanguage },
-    });
+    const response = await apiFetch<ApiResponse<TranslateChatMessagePayload>>(
+      '/chat/messages/translate',
+      {
+        method: 'POST',
+        auth: true,
+        body: { text, target_language: targetLanguage },
+      },
+    );
 
-    if (!response.success || !response.translated_text) {
-      throw new ChatTranslateApiError(response.message ?? 'Translation failed', 500);
+    // Failures arrive as non-2xx and are raised by apiFetch as ApiClientError,
+    // so reaching here without text means an unexpectedly shaped 200.
+    if (!response.data?.translated_text) {
+      throw new ChatTranslateApiError('Translation failed', 500);
     }
 
-    return response.translated_text;
+    return response.data.translated_text;
   } catch (error) {
     if (error instanceof ApiClientError) {
       throw new ChatTranslateApiError(error.message, error.status);

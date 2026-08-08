@@ -18,7 +18,7 @@ import { useTranslation } from 'react-i18next';
 import { ScreenHeader } from '@/components/layout/ScreenHeader';
 import { MyAnnouncementCard } from '@/components/my-announcements/MyAnnouncementCard';
 import { MyAnnouncementsStatsGrid } from '@/components/my-announcements/MyAnnouncementsStatsGrid';
-import { OptionPickerModal } from '@/components/my-announcements/OptionPickerModal';
+import { OptionPickerModal } from '@/components/ui/OptionPickerModal';
 import { GradientButton } from '@/components/ui/GradientButton';
 import {
   MY_ANNOUNCEMENTS_SORT_OPTIONS,

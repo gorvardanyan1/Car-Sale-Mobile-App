@@ -161,6 +161,7 @@ export const am = {
   "chat.send": "Ուղարկել",
   "chat.online": "Առցանց",
   "chat.offline": "Անցանց",
+  "chat.you": "Դուք",
   "chat.notification_new_message": "Նոր հաղորդագրություն",
   "chat.listing_title": "Հայտարարություն",
   "chat.buyer": "Գնորդ",
@@ -705,6 +706,10 @@ export const am = {
   "mobile.chat.no_conversations": "Զրույցներ դեռ չկան",
   "mobile.chat.no_conversations_hint": "Սկսեք զրույց հայտարարությունից կամ դիլերի պրոֆիլից։",
   "mobile.chat.no_messages": "Հաղորդագրություններ դեռ չկան։ Ողջունեք!",
+  "mobile.chat.typing": "գրում է…",
+  "mobile.chat.replying_to": "Պատասխան՝",
+  "mobile.chat.cancel_reply": "Չեղարկել պատասխանը",
+  "mobile.chat.reply_hint": "Սահեցրեք հաղորդագրությունն աջ՝ պատասխանելու, կամ պահեք՝ թարգմանելու համար",
   "mobile.chat.unread_count": "{{count}} չընթերցված",
   "mobile.chat.connected": "Միացված",
   "mobile.chat.disconnected": "Անջատված",
@@ -713,5 +718,6 @@ export const am = {
   "mobile.chat.translate": "Թարգմանել",
   "mobile.chat.translating": "Թարգմանվում է…",
   "mobile.chat.show_original": "Ցույց տալ բնօրինակը",
-  "mobile.chat.translate_failed": "Թարգմանությունը ձախողվեց։ Կրկին փորձեք։"
+  "mobile.chat.translate_failed": "Թարգմանությունը ձախողվեց։ Կրկին փորձեք։",
+  "mobile.chat.select_language": "Թարգմանել՝"
 } as const;

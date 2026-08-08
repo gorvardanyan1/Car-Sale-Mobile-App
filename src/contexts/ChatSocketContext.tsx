@@ -12,8 +12,14 @@ import { AppState, AppStateStatus } from 'react-native';
 import { io, Socket } from 'socket.io-client';
 
 import { CHAT_URL } from '@/constants/chat';
-import { fetchChatToken, fetchUnreadSummary } from '@/services/chatApiService';
-import type { ChatMessageShape } from '@/types/chat';
+import { buildSendMessagePayload } from '@/lib/chat/messagePayload';
+import { fetchChatSession, fetchUnreadSummary } from '@/services/chatApiService';
+import {
+  CHAT_SETTINGS_DEFAULTS,
+  type ChatClientSettings,
+  type ChatMessageShape,
+  type ChatReplySnapshot,
+} from '@/types/chat';
 
 // ─── Socket.io event shapes ──────────────────────────────────────────────────
 
@@ -24,6 +30,7 @@ interface ServerToClientEvents {
     senderId: number;
     receiverId: number;
     text: string;
+    replyTo?: ChatReplySnapshot | null;
     createdAt: Date;
     isRead: boolean;
   }) => void;
@@ -35,6 +42,11 @@ interface ServerToClientEvents {
     senderId: number;
     title: string;
     text: string;
+  }) => void;
+  'typing:update': (payload: {
+    conversationId: string;
+    userId: number;
+    typing: boolean;
   }) => void;
 }
 
@@ -53,9 +65,11 @@ interface ClientToServerEvents {
     cb: (d: { success: boolean; error?: string }) => void,
   ) => void;
   'message:send': (
-    payload: { conversationId: string; text: string },
+    payload: { conversationId: string; text: string; replyToId?: string },
     cb: (d: { success: boolean; error?: string }) => void,
   ) => void;
+  'typing:start': (payload: { conversationId: string }) => void;
+  'typing:stop': (payload: { conversationId: string }) => void;
 }
 
 type ChatSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -69,6 +83,12 @@ type ChatSocketContextValue = {
   totalUnread: number;
   unreadByConversation: Record<string, number>;
   presenceByUserId: Record<number, boolean>;
+  /** conversationId -> the partner's user id, while they are typing. */
+  typingByConversation: Record<string, number>;
+  /** Admin-configured chat settings, delivered with the chat token. */
+  chatSettings: ChatClientSettings;
+  /** Announce (or withdraw) our own typing state for a conversation. */
+  emitTyping: (conversationId: string, isTyping: boolean) => void;
   /** Currently-open conversation id — suppresses unread increments. */
   setActiveConversationId: (id: string | null) => void;
   markConversationRead: (conversationId: string) => void;
@@ -76,6 +96,7 @@ type ChatSocketContextValue = {
   sendMessage: (
     conversationId: string,
     text: string,
+    replyToId?: string | null,
   ) => Promise<{ success: boolean; error?: string }>;
   joinConversation: (payload: {
     announcementId: number;
@@ -122,6 +143,8 @@ export function ChatSocketProvider({
   const [totalUnread, setTotalUnread] = useState(0);
   const [unreadByConversation, setUnreadByConversation] = useState<Record<string, number>>({});
   const [presenceByUserId, setPresenceByUserId] = useState<Record<number, boolean>>({});
+  const [typingByConversation, setTypingByConversation] = useState<Record<string, number>>({});
+  const [chatSettings, setChatSettings] = useState<ChatClientSettings>(CHAT_SETTINGS_DEFAULTS);
 
   const socketRef = useRef<ChatSocket | null>(null);
   const activeConversationIdRef = useRef<string | null>(null);
@@ -215,7 +238,7 @@ export function ChatSocketProvider({
   );
 
   const sendMessage = useCallback(
-    (conversationId: string, text: string) =>
+    (conversationId: string, text: string, replyToId?: string | null) =>
       new Promise<{ success: boolean; error?: string }>((resolve) => {
         if (!socketRef.current?.connected) {
           if (__DEV__) console.warn('[chat] sendMessage: socket not connected');
@@ -223,11 +246,15 @@ export function ChatSocketProvider({
           return;
         }
         const timer = setTimeout(() => resolve({ success: false, error: 'Send timeout' }), 8000);
-        socketRef.current.emit('message:send', { conversationId, text }, (ack) => {
-          clearTimeout(timer);
-          if (__DEV__) console.log('[chat] message:send ack', ack);
-          resolve(ack);
-        });
+        socketRef.current.emit(
+          'message:send',
+          buildSendMessagePayload(conversationId, text, replyToId),
+          (ack) => {
+            clearTimeout(timer);
+            if (__DEV__) console.log('[chat] message:send ack', ack);
+            resolve(ack);
+          },
+        );
       }),
     [],
   );
@@ -280,6 +307,19 @@ export function ChatSocketProvider({
     socketRef.current?.emit('conversation:leave', conversationId ? { conversationId } : undefined);
   }, []);
 
+  /**
+   * Raw announce — the decision of *when* to call this (transition detection,
+   * refresh cadence, idle timeout) lives in lib/chat/typingEmitter so it can be
+   * tested without a socket. Fire-and-forget: the server expires a stale typing
+   * state on its own, so a lost stop cannot strand the indicator.
+   */
+  const emitTyping = useCallback((conversationId: string, isTyping: boolean) => {
+    const socket = socketRef.current;
+    if (!socket?.connected || !conversationId) return;
+
+    socket.emit(isTyping ? 'typing:start' : 'typing:stop', { conversationId });
+  }, []);
+
   // ── Socket event attachment ───────────────────────────────────────────────
 
   const attachListeners = useCallback((socket: ChatSocket) => {
@@ -300,6 +340,9 @@ export function ChatSocketProvider({
     socket.on('disconnect', (reason) => {
       if (__DEV__) console.warn('[chat] socket disconnected:', reason);
       setConnected(false);
+      // Nobody can still be typing at us over a dead socket, and no
+      // typing:update will ever arrive to clear these.
+      setTypingByConversation({});
 
       // socket.io does not auto-reconnect when the *server* initiated the
       // disconnect (e.g. token revoked, server restart) — recover manually
@@ -307,8 +350,9 @@ export function ChatSocketProvider({
       if (reason === 'io server disconnect') {
         void (async () => {
           try {
-            const token = await fetchChatToken();
-            socket.auth = { token: `Bearer ${token}` };
+            const session = await fetchChatSession();
+            setChatSettings(session.settings);
+            socket.auth = { token: `Bearer ${session.token}` };
             socket.connect();
           } catch (err) {
             if (__DEV__) console.warn('[chat] failed to recover from server disconnect:', err);
@@ -322,8 +366,9 @@ export function ChatSocketProvider({
       if (!isAuthError(error)) return;
       try {
         // Refresh the chat JWT and reconnect
-        const token = await fetchChatToken();
-        socket.auth = { token: `Bearer ${token}` };
+        const session = await fetchChatSession();
+        setChatSettings(session.settings);
+        socket.auth = { token: `Bearer ${session.token}` };
         socket.connect();
       } catch {
         setConnected(false);
@@ -351,6 +396,26 @@ export function ChatSocketProvider({
       setPresenceByUserId((prev) => ({ ...prev, [Number(uid)]: online }));
     });
 
+    socket.on('typing:update', ({ conversationId, userId: uid, typing }) => {
+      const id = String(conversationId);
+      const typistId = Number(uid);
+
+      // The server never echoes our own typing back, but a second session
+      // signed in as the same user would — ignore ourselves either way.
+      if (typistId === Number(userIdRef.current)) return;
+
+      setTypingByConversation((prev) => {
+        if (!typing) {
+          if (!(id in prev)) return prev;
+          const next = { ...prev };
+          delete next[id];
+          return next;
+        }
+        if (prev[id] === typistId) return prev;
+        return { ...prev, [id]: typistId };
+      });
+    });
+
     socket.on('notify:message', (payload) => {
       const isViewing = payload.conversationId === activeConversationIdRef.current;
       if (!isViewing) {
@@ -365,10 +430,21 @@ export function ChatSocketProvider({
         senderId: msg.senderId,
         receiverId: msg.receiverId,
         text: msg.text,
+        replyTo: msg.replyTo ?? null,
         createdAt: msg.createdAt,
         isRead: msg.isRead,
       };
       listenersRef.current.messageNew.forEach((fn) => fn(typedMsg));
+
+      // The message ends that burst — drop the indicator even if the sender's
+      // typing:stop is still in flight behind it.
+      const conversationKey = String(msg.conversationId);
+      setTypingByConversation((prev) => {
+        if (!(conversationKey in prev)) return prev;
+        const next = { ...prev };
+        delete next[conversationKey];
+        return next;
+      });
 
       const uid = userIdRef.current;
       const isReceiver = Number(msg.receiverId) === Number(uid);
@@ -411,9 +487,10 @@ export function ChatSocketProvider({
         if (existing.connected) return;
         connecting = true;
         try {
-          const token = await fetchChatToken();
+          const session = await fetchChatSession();
           if (cancelled) return;
-          existing.auth = { token: `Bearer ${token}` };
+          setChatSettings(session.settings);
+          existing.auth = { token: `Bearer ${session.token}` };
           existing.connect();
         } catch (err) {
           if (__DEV__) console.warn('[chat] reconnect error:', err);
@@ -425,8 +502,9 @@ export function ChatSocketProvider({
 
       connecting = true;
       try {
-        const token = await fetchChatToken();
+        const session = await fetchChatSession();
         if (cancelled) return;
+        setChatSettings(session.settings);
 
         if (__DEV__) console.log('[chat] connecting to', CHAT_URL);
 
@@ -437,7 +515,7 @@ export function ChatSocketProvider({
           // handshake, which some mobile networks/routers silently drop even
           // when plain HTTP to the same host:port works fine.
           transports: ['polling', 'websocket'],
-          auth: { token: `Bearer ${token}` },
+          auth: { token: `Bearer ${session.token}` },
         }) as ChatSocket;
 
         socketRef.current = socket;
@@ -471,6 +549,7 @@ export function ChatSocketProvider({
       }
       hasConnectedOnceRef.current = false;
       setConnected(false);
+      setTypingByConversation({});
     };
   }, [userId, attachListeners, refreshUnreadFromApi]);
 
@@ -480,6 +559,9 @@ export function ChatSocketProvider({
       totalUnread,
       unreadByConversation,
       presenceByUserId,
+      typingByConversation,
+      chatSettings,
+      emitTyping,
       setActiveConversationId,
       markConversationRead,
       isUserOnline,
@@ -497,6 +579,9 @@ export function ChatSocketProvider({
       totalUnread,
       unreadByConversation,
       presenceByUserId,
+      typingByConversation,
+      chatSettings,
+      emitTyping,
       setActiveConversationId,
       markConversationRead,
       isUserOnline,
