@@ -60,6 +60,7 @@ describe('chatApiService', () => {
         enabled: true,
         dealerChatEnabled: true,
         translationEnabled: true,
+        replySuggestionsEnabled: true,
         emojiPickerEnabled: true,
         typingIndicatorEnabled: true,
         presenceEnabled: true,

@@ -719,5 +719,9 @@ export const en = {
   "mobile.chat.translating": "Translating…",
   "mobile.chat.show_original": "Show original",
   "mobile.chat.translate_failed": "Translation failed. Please try again.",
-  "mobile.chat.select_language": "Translate to"
+  "mobile.chat.select_language": "Translate to",
+  "mobile.chat.suggest_reply": "Suggest a reply",
+  "mobile.chat.suggesting_reply": "Writing a reply…",
+  "mobile.chat.suggest_reply_hint": "AI drafts a reply in the box — read it, edit it, then send.",
+  "mobile.chat.suggest_reply_failed": "Could not suggest a reply. Please try again."
 } as const;
