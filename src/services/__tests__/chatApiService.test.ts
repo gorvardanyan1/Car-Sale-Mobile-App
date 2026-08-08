@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { apiFetch } from '@/lib/api/client';
 import {
-  fetchChatToken,
+  fetchChatSession,
   fetchConversations,
   fetchUnreadSummary,
   fetchMessages,
@@ -25,19 +25,64 @@ describe('chatApiService', () => {
     vi.clearAllMocks();
   });
 
-  describe('fetchChatToken', () => {
-    it('returns the token string from the response', async () => {
+  describe('fetchChatSession', () => {
+    it('returns the token together with the admin-configured settings', async () => {
+      mockApiFetch.mockResolvedValue({
+        data: {
+          token: 'test-jwt-token',
+          settings: {
+            enabled: true,
+            dealerChatEnabled: false,
+            translationEnabled: true,
+            emojiPickerEnabled: true,
+            typingIndicatorEnabled: false,
+            presenceEnabled: true,
+            messageMaxLength: 1500,
+          },
+        },
+      });
+
+      const session = await fetchChatSession();
+
+      expect(session.token).toBe('test-jwt-token');
+      expect(session.settings.typingIndicatorEnabled).toBe(false);
+      expect(session.settings.dealerChatEnabled).toBe(false);
+      expect(session.settings.messageMaxLength).toBe(1500);
+      expect(mockApiFetch).toHaveBeenCalledWith('/chat/token', { auth: true });
+    });
+
+    it('falls back to everything enabled when an older backend omits settings', async () => {
       mockApiFetch.mockResolvedValue({ data: { token: 'test-jwt-token' } });
 
-      const token = await fetchChatToken();
+      const session = await fetchChatSession();
 
-      expect(token).toBe('test-jwt-token');
-      expect(mockApiFetch).toHaveBeenCalledWith('/chat/token', { auth: true });
+      expect(session.settings).toEqual({
+        enabled: true,
+        dealerChatEnabled: true,
+        translationEnabled: true,
+        emojiPickerEnabled: true,
+        typingIndicatorEnabled: true,
+        presenceEnabled: true,
+        messageMaxLength: 4000,
+      });
+    });
+
+    it('fills only the fields the backend omitted, keeping the ones it sent', async () => {
+      mockApiFetch.mockResolvedValue({
+        data: { token: 't', settings: { typingIndicatorEnabled: false } },
+      });
+
+      const session = await fetchChatSession();
+
+      expect(session.settings.typingIndicatorEnabled).toBe(false);
+      expect(session.settings.messageMaxLength).toBe(4000);
+      expect(session.settings.enabled).toBe(true);
     });
 
     it('propagates errors from apiFetch', async () => {
       mockApiFetch.mockRejectedValue(new Error('Network error'));
-      await expect(fetchChatToken()).rejects.toThrow('Network error');
+
+      await expect(fetchChatSession()).rejects.toThrow('Network error');
     });
   });
 

@@ -161,6 +161,7 @@ export const ru = {
   "chat.send": "Отправить",
   "chat.online": "В сети",
   "chat.offline": "Не в сети",
+  "chat.you": "Вы",
   "chat.notification_new_message": "Новое сообщение",
   "chat.listing_title": "Объявление",
   "chat.buyer": "Покупатель",
@@ -705,6 +706,10 @@ export const ru = {
   "mobile.chat.no_conversations": "Диалогов пока нет",
   "mobile.chat.no_conversations_hint": "Начните переписку из объявления или профиля дилера.",
   "mobile.chat.no_messages": "Сообщений пока нет. Напишите первым!",
+  "mobile.chat.typing": "печатает…",
+  "mobile.chat.replying_to": "Ответ на",
+  "mobile.chat.cancel_reply": "Отменить ответ",
+  "mobile.chat.reply_hint": "Проведите по сообщению вправо, чтобы ответить, или удерживайте, чтобы перевести",
   "mobile.chat.unread_count": "{{count}} непрочитанных",
   "mobile.chat.connected": "Подключено",
   "mobile.chat.disconnected": "Не в сети",
@@ -713,5 +718,6 @@ export const ru = {
   "mobile.chat.translate": "Перевести",
   "mobile.chat.translating": "Перевод…",
   "mobile.chat.show_original": "Показать оригинал",
-  "mobile.chat.translate_failed": "Не удалось перевести. Попробуйте снова."
+  "mobile.chat.translate_failed": "Не удалось перевести. Попробуйте снова.",
+  "mobile.chat.select_language": "Перевести на"
 } as const;

@@ -10,7 +10,7 @@ type UseChatThreadReturn = {
   error: string | null;
   isSending: boolean;
   sendError: string | null;
-  sendMessage: (text: string) => Promise<void>;
+  sendMessage: (text: string, replyToId?: string | null) => Promise<void>;
 };
 
 export function useChatThread(conversationId: string | null): UseChatThreadReturn {
@@ -119,14 +119,14 @@ export function useChatThread(conversationId: string | null): UseChatThreadRetur
   }, [subscribeReconnected, markConversationRead]);
 
   const sendMessage = useCallback(
-    async (text: string) => {
+    async (text: string, replyToId?: string | null) => {
       if (!conversationId || !text.trim()) return;
 
       setSendError(null);
       setIsSending(true);
 
       try {
-        const result = await socketSend(conversationId, text.trim());
+        const result = await socketSend(conversationId, text.trim(), replyToId);
         if (!result.success) {
           setSendError(result.error ?? 'Failed to send');
         }

@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { Languages } from 'lucide-react-native';
+import { ChevronDown, Languages } from 'lucide-react-native';
 import { useTranslation } from 'react-i18next';
 
 import type { SupportedLanguage } from '@/i18n';
 import { translateChatMessage } from '@/services/chatTranslateService';
+import { OptionPickerModal } from '@/components/ui/OptionPickerModal';
 import { colors, radii, spacing, typography } from '@/theme';
 
-const LANGUAGE_OPTIONS: { code: SupportedLanguage; label: string }[] = [
-  { code: 'en', label: 'EN' },
-  { code: 'am', label: 'ՀԱՅ' },
-  { code: 'ru', label: 'РУ' },
+const LANGUAGE_OPTIONS: { value: SupportedLanguage; labelKey: string }[] = [
+  { value: 'en', labelKey: 'mobile.settings.language_en' },
+  { value: 'am', labelKey: 'mobile.settings.language_am' },
+  { value: 'ru', labelKey: 'mobile.settings.language_ru' },
 ];
 
 type Props = {
@@ -21,7 +22,7 @@ type Props = {
 export function ChatMessageTranslate({ text, align }: Props) {
   const { t, i18n } = useTranslation();
   const siteDefaultLanguage = (
-    LANGUAGE_OPTIONS.some((option) => option.code === i18n.language) ? i18n.language : 'en'
+    LANGUAGE_OPTIONS.some((option) => option.value === i18n.language) ? i18n.language : 'en'
   ) as SupportedLanguage;
 
   const [targetLanguage, setTargetLanguage] = useState<SupportedLanguage>(siteDefaultLanguage);
@@ -29,6 +30,7 @@ export function ChatMessageTranslate({ text, align }: Props) {
   const [isTranslating, setIsTranslating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isShowingTranslation, setIsShowingTranslation] = useState(false);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   if (!text.trim()) {
     return null;
@@ -67,9 +69,15 @@ export function ChatMessageTranslate({ text, align }: Props) {
   function handleSelectLanguage(langCode: SupportedLanguage) {
     setTargetLanguage(langCode);
 
+    if (langCode === targetLanguage) {
+      return;
+    }
+
+    // Picking from the menu is an explicit request, so always surface the
+    // result rather than only refreshing an already-visible translation.
     if (translations[langCode]) {
       setIsShowingTranslation(true);
-    } else if (isShowingTranslation) {
+    } else {
       void runTranslate(langCode);
     }
   }
@@ -97,24 +105,28 @@ export function ChatMessageTranslate({ text, align }: Props) {
           </Text>
         </Pressable>
 
-        <View style={styles.languageChips} testID="chat-translate-language-select">
-          {LANGUAGE_OPTIONS.map((option) => {
-            const isSelected = option.code === targetLanguage;
-            return (
-              <Pressable
-                key={option.code}
-                onPress={() => handleSelectLanguage(option.code)}
-                style={[styles.chip, isSelected && styles.chipSelected]}
-                testID={`chat-translate-language-${option.code}`}
-              >
-                <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
-                  {option.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        {/* Compact trigger + chevron, mirroring the web bubble: three inline
+            chips crowded the row on narrow phones. */}
+        <Pressable
+          onPress={() => setIsPickerOpen(true)}
+          style={styles.languageTrigger}
+          accessibilityRole="button"
+          accessibilityLabel={t('mobile.chat.select_language')}
+          testID="chat-translate-language-select"
+        >
+          <Text style={styles.languageTriggerText}>{targetLanguage.toUpperCase()}</Text>
+          <ChevronDown size={12} color={colors.textSubtle} />
+        </Pressable>
       </View>
+
+      <OptionPickerModal<SupportedLanguage>
+        visible={isPickerOpen}
+        title={t('mobile.chat.select_language')}
+        value={targetLanguage}
+        options={LANGUAGE_OPTIONS}
+        onClose={() => setIsPickerOpen(false)}
+        onChange={handleSelectLanguage}
+      />
 
       {isShowingTranslation && translatedText && (
         <Text style={styles.translatedText} testID="chat-translated-text">
@@ -134,7 +146,9 @@ export function ChatMessageTranslate({ text, align }: Props) {
 const styles = StyleSheet.create({
   container: {
     marginTop: 2,
-    maxWidth: '78%',
+    // The 78% cap is applied by the bubble's translate slot; repeating it here
+    // would compound to ~61% of the row.
+    maxWidth: '100%',
     gap: 2,
   },
   alignLeft: {
@@ -158,29 +172,20 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.primaryLight,
   },
-  languageChips: {
+  languageTrigger: {
     flexDirection: 'row',
-    gap: 4,
-  },
-  chip: {
+    alignItems: 'center',
+    gap: 2,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: radii.sm,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  chipSelected: {
-    borderColor: colors.primary,
-    backgroundColor: 'rgba(59, 130, 246, 0.15)',
-  },
-  chipText: {
+  languageTriggerText: {
     ...typography.caption,
     fontSize: 10,
     color: colors.textSubtle,
-  },
-  chipTextSelected: {
-    color: colors.primaryLight,
-    fontWeight: '600',
   },
   translatedText: {
     ...typography.body,

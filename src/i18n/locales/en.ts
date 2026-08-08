@@ -152,6 +152,7 @@ export const en = {
   "chat.send": "Send",
   "chat.online": "Online",
   "chat.offline": "Offline",
+  "chat.you": "You",
   "chat.notification_new_message": "New message",
   "chat.listing_title": "Listing",
   "chat.buyer": "Buyer",
@@ -705,6 +706,10 @@ export const en = {
   "mobile.chat.no_conversations": "No conversations yet",
   "mobile.chat.no_conversations_hint": "Start a conversation from a listing or dealer profile.",
   "mobile.chat.no_messages": "No messages yet. Say hello!",
+  "mobile.chat.typing": "typing…",
+  "mobile.chat.replying_to": "Replying to",
+  "mobile.chat.cancel_reply": "Cancel reply",
+  "mobile.chat.reply_hint": "Swipe a message right to reply, or hold it to translate",
   "mobile.chat.unread_count": "{{count}} unread",
   "mobile.chat.connected": "Connected",
   "mobile.chat.disconnected": "Offline",
@@ -713,5 +718,6 @@ export const en = {
   "mobile.chat.translate": "Translate",
   "mobile.chat.translating": "Translating…",
   "mobile.chat.show_original": "Show original",
-  "mobile.chat.translate_failed": "Translation failed. Please try again."
+  "mobile.chat.translate_failed": "Translation failed. Please try again.",
+  "mobile.chat.select_language": "Translate to"
 } as const;

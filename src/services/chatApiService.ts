@@ -1,14 +1,33 @@
 import { apiFetch } from '@/lib/api/client';
 import type { ApiResponse } from '@/types';
-import type { ChatConversation, ChatMessageShape, UnreadSummary } from '@/types/chat';
+import {
+  CHAT_SETTINGS_DEFAULTS,
+  type ChatClientSettings,
+  type ChatConversation,
+  type ChatMessageShape,
+  type ChatSession,
+  type UnreadSummary,
+} from '@/types/chat';
 
 /**
- * Fetch a short-lived chat JWT from Laravel.
- * This token is used to authenticate with the Socket.io server directly.
+ * Fetch a short-lived chat JWT plus the admin-configured client settings.
+ *
+ * Both arrive together because the token fetch already happens at exactly the
+ * points the settings must be current — first connect, and every reconnect
+ * after a dropped or rejected socket.
  */
-export async function fetchChatToken(): Promise<string> {
-  const res = await apiFetch<ApiResponse<{ token: string }>>('/chat/token', { auth: true });
-  return res.data.token;
+export async function fetchChatSession(): Promise<ChatSession> {
+  const res = await apiFetch<ApiResponse<{ token: string; settings?: Partial<ChatClientSettings> }>>(
+    '/chat/token',
+    { auth: true },
+  );
+
+  return {
+    token: res.data.token,
+    // An older backend simply omits `settings`; fall back to everything on
+    // rather than silently disabling features the admin never turned off.
+    settings: { ...CHAT_SETTINGS_DEFAULTS, ...(res.data.settings ?? {}) },
+  };
 }
 
 // Every request is HMAC-signed over method+path+timestamp-in-whole-seconds

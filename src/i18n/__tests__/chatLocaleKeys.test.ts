@@ -10,6 +10,9 @@ const REQUIRED_KEYS = [
   'mobile.chat.no_conversations',
   'mobile.chat.no_conversations_hint',
   'mobile.chat.no_messages',
+  'mobile.chat.typing',
+  'mobile.chat.replying_to',
+  'mobile.chat.cancel_reply',
   'mobile.chat.unread_count',
   'mobile.chat.connected',
   'mobile.chat.disconnected',
@@ -19,11 +22,17 @@ const REQUIRED_KEYS = [
   'mobile.chat.translating',
   'mobile.chat.show_original',
   'mobile.chat.translate_failed',
+  'mobile.chat.select_language',
+  // Language names shown in the chat translate picker.
+  'mobile.settings.language_en',
+  'mobile.settings.language_am',
+  'mobile.settings.language_ru',
   'chat.online',
   'chat.offline',
   'chat.buyer',
   'chat.listing_title',
   'chat.send_failed',
+  'chat.you',
 ] as const;
 
 const locales = { en, ru, am } as const;

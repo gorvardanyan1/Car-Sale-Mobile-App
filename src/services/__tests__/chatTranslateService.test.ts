@@ -23,9 +23,8 @@ describe('chatTranslateService', () => {
 
   it('posts the message text and target language, returning the translated text', async () => {
     vi.mocked(apiFetch).mockResolvedValueOnce({
-      success: true,
-      translated_text: 'Բարև Ձեզ',
-      target_language: 'am',
+      data: { translated_text: 'Բարև Ձեզ', target_language: 'am' },
+      meta: {},
     });
 
     const result = await chatTranslateService.translateChatMessage('Hello there', 'am');
@@ -38,17 +37,32 @@ describe('chatTranslateService', () => {
     expect(result).toBe('Բարև Ձեզ');
   });
 
-  it('throws ChatTranslateApiError when the API responds with success: false', async () => {
-    vi.mocked(apiFetch).mockResolvedValueOnce({
-      success: false,
-      message: 'Translation failed. Please try again.',
-    });
+  it('surfaces the server message when the admin has disabled chat translation', async () => {
+    const { ApiClientError } = await import('@/lib/api/client');
+    vi.mocked(apiFetch).mockRejectedValueOnce(
+      new ApiClientError(
+        'Chat message translation is currently disabled by the site administrator.',
+        403,
+      ),
+    );
 
     await expect(
       chatTranslateService.translateChatMessage('Hello there', 'ru'),
     ).rejects.toMatchObject({
       name: 'ChatTranslateApiError',
-      message: 'Translation failed. Please try again.',
+      message: 'Chat message translation is currently disabled by the site administrator.',
+      status: 403,
+    });
+  });
+
+  it('throws when a 2xx response omits translated_text', async () => {
+    vi.mocked(apiFetch).mockResolvedValueOnce({ data: {}, meta: {} });
+
+    await expect(
+      chatTranslateService.translateChatMessage('Hello there', 'ru'),
+    ).rejects.toMatchObject({
+      name: 'ChatTranslateApiError',
+      message: 'Translation failed',
     });
   });
 
