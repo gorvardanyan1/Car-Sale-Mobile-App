@@ -719,5 +719,9 @@ export const ru = {
   "mobile.chat.translating": "Перевод…",
   "mobile.chat.show_original": "Показать оригинал",
   "mobile.chat.translate_failed": "Не удалось перевести. Попробуйте снова.",
-  "mobile.chat.select_language": "Перевести на"
+  "mobile.chat.select_language": "Перевести на",
+  "mobile.chat.suggest_reply": "Предложить ответ",
+  "mobile.chat.suggesting_reply": "Составляем ответ…",
+  "mobile.chat.suggest_reply_hint": "ИИ напишет ответ в поле — прочитайте, отредактируйте и отправьте.",
+  "mobile.chat.suggest_reply_failed": "Не удалось предложить ответ. Попробуйте снова."
 } as const;

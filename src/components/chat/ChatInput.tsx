@@ -1,10 +1,19 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { Send, X } from 'lucide-react-native';
-import { useState } from 'react';
+import { forwardRef, useImperativeHandle, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { colors, radii, spacing, typography } from '@/theme';
 import type { ChatMessageShape } from '@/types/chat';
+
+/**
+ * Lets the screen drop a draft into the composer (the AI reply suggestion)
+ * without lifting the whole value up: a controlled composer would re-render the
+ * message list on every keystroke.
+ */
+export type ChatInputHandle = {
+  setText: (text: string) => void;
+};
 
 type Props = {
   onSend: (text: string) => void;
@@ -22,7 +31,7 @@ type Props = {
   onCancelReply?: () => void;
 };
 
-export function ChatInput({
+export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   onSend,
   isSending = false,
   disabled = false,
@@ -32,9 +41,11 @@ export function ChatInput({
   replyTo = null,
   replyToIsMine = false,
   onCancelReply,
-}: Props) {
+}: Props, ref) {
   const { t } = useTranslation();
   const [text, setText] = useState('');
+
+  useImperativeHandle(ref, () => ({ setText }), []);
 
   const handleChangeText = (value: string) => {
     setText(value);
@@ -107,7 +118,7 @@ export function ChatInput({
       </View>
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   wrapper: {

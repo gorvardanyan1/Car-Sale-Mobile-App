@@ -14,8 +14,9 @@ import { useTranslation } from 'react-i18next';
 import { ChevronLeft, Wifi, WifiOff } from 'lucide-react-native';
 import { Pressable } from 'react-native';
 
-import { ChatInput } from '@/components/chat/ChatInput';
+import { ChatInput, type ChatInputHandle } from '@/components/chat/ChatInput';
 import { ChatMessageBubble } from '@/components/chat/ChatMessageBubble';
+import { ChatReplySuggestion } from '@/components/chat/ChatReplySuggestion';
 import { ChatTypingIndicator } from '@/components/chat/ChatTypingIndicator';
 import { useConversations } from '@/hooks/useConversations';
 import { useChatThread } from '@/hooks/useChatThread';
@@ -23,6 +24,7 @@ import { useTypingEmitter } from '@/hooks/useTypingEmitter';
 import { useChatSocket } from '@/contexts/ChatSocketContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { getConversationDisplay } from '@/lib/chat/conversationDisplay';
+import { shouldOfferReplySuggestion } from '@/lib/chat/replySuggestion';
 import { colors, spacing, typography } from '@/theme';
 import type { ChatMessageShape } from '@/types/chat';
 
@@ -50,7 +52,12 @@ export default function ChatThreadScreen() {
     chatSettings.typingIndicatorEnabled && id != null && typingByConversation[id] != null;
 
   const flatListRef = useRef<FlatList<ChatMessageShape>>(null);
+  const composerRef = useRef<ChatInputHandle>(null);
   const [partnerOnline, setPartnerOnline] = useState(false);
+  // Tracked as a boolean rather than the draft itself: the composer keeps its
+  // own text so typing never re-renders the message list, and this only flips
+  // when the box goes empty or stops being empty.
+  const [composerIsEmpty, setComposerIsEmpty] = useState(true);
   const [replyTo, setReplyTo] = useState<ChatMessageShape | null>(null);
   // A quote only makes sense inside the thread it came from. Derived rather
   // than reset in an effect, so switching threads never shows a stale quote
@@ -145,8 +152,31 @@ export default function ChatThreadScreen() {
   const handleSend = async (text: string) => {
     const pendingReplyTo = activeReplyTo;
     setReplyTo(null);
+    setComposerIsEmpty(true);
     await sendMessage(text, pendingReplyTo?._id ?? null);
   };
+
+  const handleComposerChange = useCallback(
+    (value: string) => {
+      handleTextChange(value);
+      setComposerIsEmpty(value.trim().length === 0);
+    },
+    [handleTextChange],
+  );
+
+  // A suggestion is a draft, never a send: it lands in the composer for the
+  // user to edit. Only offered while the box is empty, so it can never
+  // overwrite something already typed.
+  const handleSuggestion = useCallback((suggestion: string) => {
+    composerRef.current?.setText(suggestion);
+    setComposerIsEmpty(false);
+  }, []);
+
+  const canSuggestReply =
+    chatSettings.replySuggestionsEnabled &&
+    id != null &&
+    composerIsEmpty &&
+    shouldOfferReplySuggestion(messages, user?.id);
 
   const handleReply = useCallback((message: ChatMessageShape) => {
     setReplyTo(message);
@@ -220,7 +250,14 @@ export default function ChatThreadScreen() {
             )}
             contentContainerStyle={styles.messageList}
             showsVerticalScrollIndicator={false}
-            ListFooterComponent={partnerTyping ? <ChatTypingIndicator /> : null}
+            ListFooterComponent={
+              <>
+                {canSuggestReply ? (
+                  <ChatReplySuggestion conversationId={id} onSuggestion={handleSuggestion} />
+                ) : null}
+                {partnerTyping ? <ChatTypingIndicator /> : null}
+              </>
+            }
             // A quoted message may be far up the thread and not yet measured.
             onScrollToIndexFailed={({ index }) => {
               flatListRef.current?.scrollToOffset({ offset: 0, animated: false });
@@ -243,10 +280,11 @@ export default function ChatThreadScreen() {
         ) : null}
 
         <ChatInput
+          ref={composerRef}
           onSend={handleSend}
           isSending={isSending}
           disabled={!connected}
-          onTextChange={handleTextChange}
+          onTextChange={handleComposerChange}
           onStoppedTyping={stopTyping}
           maxLength={chatSettings.messageMaxLength}
           replyTo={activeReplyTo}

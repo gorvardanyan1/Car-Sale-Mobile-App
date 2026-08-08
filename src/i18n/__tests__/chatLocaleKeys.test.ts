@@ -23,6 +23,10 @@ const REQUIRED_KEYS = [
   'mobile.chat.show_original',
   'mobile.chat.translate_failed',
   'mobile.chat.select_language',
+  'mobile.chat.suggest_reply',
+  'mobile.chat.suggesting_reply',
+  'mobile.chat.suggest_reply_hint',
+  'mobile.chat.suggest_reply_failed',
   // Language names shown in the chat translate picker.
   'mobile.settings.language_en',
   'mobile.settings.language_am',

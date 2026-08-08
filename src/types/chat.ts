@@ -78,6 +78,7 @@ export type ChatClientSettings = {
   enabled: boolean;
   dealerChatEnabled: boolean;
   translationEnabled: boolean;
+  replySuggestionsEnabled: boolean;
   emojiPickerEnabled: boolean;
   typingIndicatorEnabled: boolean;
   presenceEnabled: boolean;
@@ -89,6 +90,7 @@ export const CHAT_SETTINGS_DEFAULTS: ChatClientSettings = {
   enabled: true,
   dealerChatEnabled: true,
   translationEnabled: true,
+  replySuggestionsEnabled: true,
   emojiPickerEnabled: true,
   typingIndicatorEnabled: true,
   presenceEnabled: true,

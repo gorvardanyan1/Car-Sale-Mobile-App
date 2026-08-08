@@ -719,5 +719,9 @@ export const am = {
   "mobile.chat.translating": "Թարգմանվում է…",
   "mobile.chat.show_original": "Ցույց տալ բնօրինակը",
   "mobile.chat.translate_failed": "Թարգմանությունը ձախողվեց։ Կրկին փորձեք։",
-  "mobile.chat.select_language": "Թարգմանել՝"
+  "mobile.chat.select_language": "Թարգմանել՝",
+  "mobile.chat.suggest_reply": "Առաջարկել պատասխան",
+  "mobile.chat.suggesting_reply": "Պատասխանը կազմվում է…",
+  "mobile.chat.suggest_reply_hint": "AI-ն պատասխան կգրի դաշտում — կարդացեք, խմբագրեք և ուղարկեք։",
+  "mobile.chat.suggest_reply_failed": "Չհաջողվեց առաջարկել պատասխան։ Կրկին փորձեք։"
 } as const;
