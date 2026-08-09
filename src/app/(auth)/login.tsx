@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useTranslation } from 'react-i18next';
 
+import { AuthDivider, GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { AuthScreenLayout } from '@/components/auth/AuthScreenLayout';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { TextField } from '@/components/ui/TextField';
@@ -13,14 +14,41 @@ import { colors, spacing, typography } from '@/theme';
 import type { FieldErrors } from '@/types';
 
 export default function LoginScreen() {
-  const { signIn } = useAuth();
+  const { signIn, signInWithGoogle } = useAuth();
   const { t } = useTranslation();
-  const { dealerAuthEnabled } = useMobileAuthConfig();
+  const { dealerAuthEnabled, googleEnabled } = useMobileAuthConfig();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+
+  const busy = isSubmitting || isGoogleSubmitting;
+
+  const handleGoogleSignIn = async () => {
+    setFieldErrors({});
+    setFormError(null);
+    setIsGoogleSubmitting(true);
+
+    try {
+      const outcome = await signInWithGoogle();
+
+      // A cancelled consent screen is a normal thing to do, not a failure —
+      // showing an error for it would be noise.
+      if (outcome.status === 'failed') {
+        setFormError(
+          outcome.code === 'not_configured'
+            ? t('mobile.errors.google_unavailable')
+            : t('mobile.errors.google_sign_in_failed'),
+        );
+      }
+    } catch (error) {
+      setFormError(getErrorMessage(error, t('mobile.errors.google_sign_in_failed')));
+    } finally {
+      setIsGoogleSubmitting(false);
+    }
+  };
 
   const handleSubmit = async () => {
     const trimmedEmail = email.trim();
@@ -69,6 +97,17 @@ export default function LoginScreen() {
           <Text style={styles.dealerWebHint}>{t('mobile.auth.dealer_web_only')}</Text>
         ) : null}
 
+        {googleEnabled ? (
+          <View style={styles.socialBlock}>
+            <GoogleSignInButton
+              onPress={() => void handleGoogleSignIn()}
+              loading={isGoogleSubmitting}
+              disabled={isSubmitting}
+            />
+            <AuthDivider label={t('auth.or_continue_with_email')} />
+          </View>
+        ) : null}
+
         <TextField
           label={t('auth.email_address')}
           value={email}
@@ -78,7 +117,7 @@ export default function LoginScreen() {
           autoComplete="email"
           textContentType="emailAddress"
           returnKeyType="next"
-          editable={!isSubmitting}
+          editable={!busy}
           error={firstFieldError(fieldErrors, 'email')}
         />
 
@@ -91,7 +130,7 @@ export default function LoginScreen() {
           textContentType="password"
           returnKeyType="go"
           onSubmitEditing={() => void handleSubmit()}
-          editable={!isSubmitting}
+          editable={!busy}
           error={firstFieldError(fieldErrors, 'password')}
         />
 
@@ -100,7 +139,7 @@ export default function LoginScreen() {
         <GradientButton
           label={isSubmitting ? t('mobile.auth.signing_in') : t('auth.sign_in')}
           onPress={() => void handleSubmit()}
-          disabled={isSubmitting}
+          disabled={busy}
           style={styles.submitButton}
         />
 
@@ -132,6 +171,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   form: {
+    gap: spacing.md,
+  },
+  socialBlock: {
     gap: spacing.md,
   },
   dealerWebHint: {

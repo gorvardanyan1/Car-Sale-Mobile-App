@@ -4,20 +4,23 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { useTranslation } from 'react-i18next';
 
 import { AccountTypeToggle } from '@/components/auth/AccountTypeToggle';
+import { AuthDivider, GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { AuthScreenLayout } from '@/components/auth/AuthScreenLayout';
 import { GradientButton } from '@/components/ui/GradientButton';
 import { TextField } from '@/components/ui/TextField';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMobileAuthConfig } from '@/hooks/useMobileAuthConfig';
 import { firstFieldError, getErrorMessage, mapApiErrors } from '@/lib/api/errors';
+import { resolveRegisterScreenSlots } from '@/lib/auth/resolveRegisterScreenSlots';
 import { formatBirthDateInput, isValidBirthDate } from '@/lib/profile/birthDate';
 import { colors, spacing, typography } from '@/theme';
 import type { AccountType, FieldErrors } from '@/types';
 
 export default function RegisterScreen() {
-  const { signUp } = useAuth();
+  const { signUp, signInWithGoogle } = useAuth();
   const { t } = useTranslation();
-  const { dealerAuthEnabled } = useMobileAuthConfig();
+  const { dealerAuthEnabled, googleRegistrationEnabled, registrationEnabled } =
+    useMobileAuthConfig();
   const [accountType, setAccountType] = useState<AccountType>('user');
   const [name, setName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -42,6 +45,42 @@ export default function RegisterScreen() {
   };
 
   const isIndividual = !dealerAuthEnabled || accountType === 'user';
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+
+  const slots = resolveRegisterScreenSlots({
+    // Google only ever creates individual accounts — a dealer account carries
+    // company details and a verification workflow a consent screen cannot
+    // supply — so the button goes away once "Dealer" is selected.
+    googleAvailable: googleRegistrationEnabled && isIndividual,
+    // Email signup is closed from Settings → Authentication. The endpoint
+    // refuses it either way; hiding the form just avoids walking someone
+    // through one that cannot succeed.
+    emailFormAvailable: registrationEnabled,
+    hasError: formError !== null,
+  });
+  const { showEmailForm } = slots;
+
+  const handleGoogleSignUp = async () => {
+    setFieldErrors({});
+    setFormError(null);
+    setIsGoogleSubmitting(true);
+
+    try {
+      const outcome = await signInWithGoogle();
+
+      if (outcome.status === 'failed') {
+        setFormError(
+          outcome.code === 'not_configured'
+            ? t('mobile.errors.google_unavailable')
+            : t('mobile.errors.google_sign_in_failed'),
+        );
+      }
+    } catch (error) {
+      setFormError(getErrorMessage(error, t('mobile.errors.google_sign_in_failed')));
+    } finally {
+      setIsGoogleSubmitting(false);
+    }
+  };
 
   const handleSubmit = async () => {
     setFieldErrors({});
@@ -95,111 +134,140 @@ export default function RegisterScreen() {
       </View>
 
       <View style={styles.form}>
-        {dealerAuthEnabled ? (
-          <AccountTypeToggle value={accountType} onChange={handleAccountTypeChange} />
-        ) : (
-          <Text style={styles.dealerWebHint}>{t('mobile.auth.dealer_web_only')}</Text>
-        )}
-
-        {dealerAuthEnabled && accountType === 'dealer' ? (
-          <TextField
-            label={t('auth.company_name')}
-            value={name}
-            onChangeText={setName}
-            autoCapitalize="words"
-            error={firstFieldError(fieldErrors, 'name')}
-          />
-        ) : (
-          <View style={styles.nameRow}>
-            <View style={styles.nameField}>
-              <TextField
-                label={t('auth.first_name')}
-                value={name}
-                onChangeText={setName}
-                autoCapitalize="words"
-                error={firstFieldError(fieldErrors, 'name')}
-              />
-            </View>
-            <View style={styles.nameField}>
-              <TextField
-                label={t('auth.last_name')}
-                value={lastName}
-                onChangeText={setLastName}
-                autoCapitalize="words"
-                error={firstFieldError(fieldErrors, 'last_name')}
-              />
-            </View>
+        {slots.showGoogleButton ? (
+          <View style={styles.socialBlock}>
+            <GoogleSignInButton
+              onPress={() => void handleGoogleSignUp()}
+              loading={isGoogleSubmitting}
+              disabled={isSubmitting}
+            />
+            {/* Nothing to continue *to* when the email form is switched off. */}
+            {slots.showDivider ? <AuthDivider label={t('auth.or_continue_with_email')} /> : null}
           </View>
-        )}
-
-        {isIndividual ? (
-          <TextField
-            label={t('profile.birth_date')}
-            value={birthDate}
-            onChangeText={(value) => setBirthDate(formatBirthDateInput(value))}
-            placeholder="YYYY-MM-DD"
-            keyboardType="number-pad"
-            maxLength={10}
-            showOptionalHint
-            testID="register-birth-date"
-            error={firstFieldError(fieldErrors, 'birth_date')}
-          />
         ) : null}
 
-        <TextField
-          label={t('auth.email_address')}
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          autoComplete="email"
-          textContentType="emailAddress"
-          error={firstFieldError(fieldErrors, 'email')}
-        />
+        {/*
+          The email form carries its own error slot above its submit button. When
+          that form is hidden this is the only one on the screen, so without it a
+          failed Google sign-up would leave the button looking simply dead.
+        */}
+        {slots.showStandaloneError ? (
+          <Text style={styles.formError}>{formError}</Text>
+        ) : null}
 
-        <TextField
-          label={t('auth.password')}
-          value={password}
-          onChangeText={setPassword}
-          secureToggle
-          autoComplete="new-password"
-          textContentType="newPassword"
-          error={firstFieldError(fieldErrors, 'password')}
-        />
+        {showEmailForm ? (
+          <>
+          {dealerAuthEnabled ? (
+            <AccountTypeToggle value={accountType} onChange={handleAccountTypeChange} />
+          ) : (
+            <Text style={styles.dealerWebHint}>{t('mobile.auth.dealer_web_only')}</Text>
+          )}
 
-        <TextField
-          label={t('auth.confirm_password')}
-          value={passwordConfirmation}
-          onChangeText={setPasswordConfirmation}
-          secureToggle
-          autoComplete="new-password"
-          textContentType="newPassword"
-          error={firstFieldError(fieldErrors, 'password_confirmation')}
-        />
+          {dealerAuthEnabled && accountType === 'dealer' ? (
+            <TextField
+              label={t('auth.company_name')}
+              value={name}
+              onChangeText={setName}
+              autoCapitalize="words"
+              error={firstFieldError(fieldErrors, 'name')}
+            />
+          ) : (
+            <View style={styles.nameRow}>
+              <View style={styles.nameField}>
+                <TextField
+                  label={t('auth.first_name')}
+                  value={name}
+                  onChangeText={setName}
+                  autoCapitalize="words"
+                  error={firstFieldError(fieldErrors, 'name')}
+                />
+              </View>
+              <View style={styles.nameField}>
+                <TextField
+                  label={t('auth.last_name')}
+                  value={lastName}
+                  onChangeText={setLastName}
+                  autoCapitalize="words"
+                  error={firstFieldError(fieldErrors, 'last_name')}
+                />
+              </View>
+            </View>
+          )}
 
-        <Pressable
-          style={styles.termsRow}
-          onPress={() => setAcceptedTerms((value) => !value)}
-        >
-          <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
-            {acceptedTerms ? <Text style={styles.checkmark}>✓</Text> : null}
-          </View>
-          <Text style={styles.termsText}>
-            {t('auth.i_agree_to')} {t('auth.terms_and_conditions')} {t('auth.and')}{' '}
-            {t('auth.privacy_policy')}
-          </Text>
-        </Pressable>
+          {isIndividual ? (
+            <TextField
+              label={t('profile.birth_date')}
+              value={birthDate}
+              onChangeText={(value) => setBirthDate(formatBirthDateInput(value))}
+              placeholder="YYYY-MM-DD"
+              keyboardType="number-pad"
+              maxLength={10}
+              showOptionalHint
+              testID="register-birth-date"
+              error={firstFieldError(fieldErrors, 'birth_date')}
+            />
+          ) : null}
 
-        {formError ? <Text style={styles.formError}>{formError}</Text> : null}
+          <TextField
+            label={t('auth.email_address')}
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoComplete="email"
+            textContentType="emailAddress"
+            error={firstFieldError(fieldErrors, 'email')}
+          />
 
-        <GradientButton
-          label={isSubmitting ? t('mobile.auth.creating_account') : t('auth.create_account_button')}
-          onPress={() => void handleSubmit()}
-          style={styles.submitButton}
-        />
+          <TextField
+            label={t('auth.password')}
+            value={password}
+            onChangeText={setPassword}
+            secureToggle
+            autoComplete="new-password"
+            textContentType="newPassword"
+            error={firstFieldError(fieldErrors, 'password')}
+          />
 
-        {isSubmitting ? (
-          <ActivityIndicator color={colors.primaryLight} style={styles.loader} />
+          <TextField
+            label={t('auth.confirm_password')}
+            value={passwordConfirmation}
+            onChangeText={setPasswordConfirmation}
+            secureToggle
+            autoComplete="new-password"
+            textContentType="newPassword"
+            error={firstFieldError(fieldErrors, 'password_confirmation')}
+          />
+
+          <Pressable
+            style={styles.termsRow}
+            onPress={() => setAcceptedTerms((value) => !value)}
+          >
+            <View style={[styles.checkbox, acceptedTerms && styles.checkboxChecked]}>
+              {acceptedTerms ? <Text style={styles.checkmark}>✓</Text> : null}
+            </View>
+            <Text style={styles.termsText}>
+              {t('auth.i_agree_to')} {t('auth.terms_and_conditions')} {t('auth.and')}{' '}
+              {t('auth.privacy_policy')}
+            </Text>
+          </Pressable>
+
+          {formError ? <Text style={styles.formError}>{formError}</Text> : null}
+
+          <GradientButton
+            label={isSubmitting ? t('mobile.auth.creating_account') : t('auth.create_account_button')}
+            onPress={() => void handleSubmit()}
+            style={styles.submitButton}
+          />
+
+          {isSubmitting ? (
+            <ActivityIndicator color={colors.primaryLight} style={styles.loader} />
+          ) : null}
+          </>
+        ) : null}
+
+        {slots.showClosedNotice ? (
+          <Text style={styles.dealerWebHint}>{t('mobile.errors.registration_closed')}</Text>
         ) : null}
       </View>
     </AuthScreenLayout>
@@ -226,6 +294,9 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   form: {
+    gap: spacing.md,
+  },
+  socialBlock: {
     gap: spacing.md,
   },
   dealerWebHint: {

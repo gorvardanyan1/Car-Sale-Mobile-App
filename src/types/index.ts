@@ -22,6 +22,20 @@ export type LoginPayload = {
   device_name?: string;
 };
 
+/**
+ * A native Google sign-in, exchanged at `POST /auth/google`.
+ *
+ * Carries only the ID token: the email, name and Google user id are read
+ * server-side out of the verified token, never sent by the client, so there is
+ * nothing here an attacker could set to claim someone else's identity.
+ */
+export type GoogleLoginPayload = {
+  idToken: string;
+  deviceName?: string;
+  /** Invite code, when the user arrived through a referral link. */
+  referralCode?: string;
+};
+
 export type RegisterPayload = {
   account_type: AccountType;
   name: string;
