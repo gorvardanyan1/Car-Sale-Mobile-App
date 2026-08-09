@@ -5,6 +5,7 @@ import { unregisterStoredPushToken } from '@/lib/notifications/pushTokenStorage'
 import type {
   ApiResponse,
   AuthCredentials,
+  GoogleLoginPayload,
   LoginPayload,
   RegisterPayload,
   User,
@@ -28,6 +29,27 @@ export async function register(payload: RegisterPayload): Promise<AuthCredential
     body: {
       ...payload,
       device_name: payload.device_name ?? config.deviceName,
+    },
+  });
+
+  return response.data;
+}
+
+/**
+ * Exchange a Google ID token for a session.
+ *
+ * The token is only ever an *assertion* until the API has verified its
+ * signature against Google's keys and confirmed it was issued to one of our own
+ * OAuth clients — so this is a credential exchange, not a login the app has
+ * already decided on.
+ */
+export async function loginWithGoogle(payload: GoogleLoginPayload): Promise<AuthCredentials> {
+  const response = await apiFetch<ApiResponse<AuthCredentials>>('/auth/google', {
+    method: 'POST',
+    body: {
+      id_token: payload.idToken,
+      ...(payload.referralCode ? { referral_code: payload.referralCode } : {}),
+      device_name: payload.deviceName ?? config.deviceName,
     },
   });
 

@@ -6,20 +6,27 @@
   "build": {
     "development": {
       "developmentClient": true,
-      "distribution": "internal"
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://165.22.30.4/api/v1",
+        "EXPO_PUBLIC_CHAT_URL": "http://165.22.30.4:3000",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "91785907520-2ia9spi5b4rg97epil523u96tgfhsnsa.apps.googleusercontent.com"
+      }
     },
     "preview": {
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_URL": "http://165.22.30.4/api/v1",
-        "EXPO_PUBLIC_CHAT_URL": "http://165.22.30.4:3000"
+        "EXPO_PUBLIC_CHAT_URL": "http://165.22.30.4:3000",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "91785907520-2ia9spi5b4rg97epil523u96tgfhsnsa.apps.googleusercontent.com"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "http://165.22.30.4/api/v1",
-        "EXPO_PUBLIC_CHAT_URL": "http://165.22.30.4:3000"
+        "EXPO_PUBLIC_CHAT_URL": "http://165.22.30.4:3000",
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "91785907520-2ia9spi5b4rg97epil523u96tgfhsnsa.apps.googleusercontent.com"
       }
     }
   },

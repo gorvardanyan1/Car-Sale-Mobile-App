@@ -1,14 +1,25 @@
 import { useEffect, useState } from 'react';
 
+import { isGoogleAuthConfigured } from '@/lib/auth/googleAuth';
+import {
+  MOBILE_AUTH_CONFIG_FALLBACK,
+  resolveMobileAuthConfig,
+  type ResolvedMobileAuthConfig,
+} from '@/lib/auth/resolveMobileAuthConfig';
 import { fetchMobileAuthConfig } from '@/services/authConfigService';
 
-type MobileAuthConfigState = {
-  dealerAuthEnabled: boolean;
+type MobileAuthConfigState = ResolvedMobileAuthConfig & {
   loading: boolean;
 };
 
+/**
+ * The server-side auth switches, folded together with what this build can do.
+ *
+ * Presentation only — every switch is re-checked by the API on the endpoint
+ * itself. See {@see resolveMobileAuthConfig} for the fallback policy.
+ */
 export function useMobileAuthConfig(): MobileAuthConfigState {
-  const [dealerAuthEnabled, setDealerAuthEnabled] = useState(false);
+  const [state, setState] = useState<ResolvedMobileAuthConfig>(MOBILE_AUTH_CONFIG_FALLBACK);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -19,11 +30,11 @@ export function useMobileAuthConfig(): MobileAuthConfigState {
         const config = await fetchMobileAuthConfig();
 
         if (!cancelled) {
-          setDealerAuthEnabled(Boolean(config.dealer_auth_enabled));
+          setState(resolveMobileAuthConfig(config, isGoogleAuthConfigured()));
         }
       } catch {
         if (!cancelled) {
-          setDealerAuthEnabled(false);
+          setState(resolveMobileAuthConfig(null, isGoogleAuthConfigured()));
         }
       } finally {
         if (!cancelled) {
@@ -37,5 +48,5 @@ export function useMobileAuthConfig(): MobileAuthConfigState {
     };
   }, []);
 
-  return { dealerAuthEnabled, loading };
+  return { ...state, loading };
 }

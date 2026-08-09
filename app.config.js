@@ -42,19 +42,68 @@ function insecureApiHost(apiUrl) {
   }
 }
 
+/**
+ * Google's native OAuth clients deliver their redirect to the "reversed client
+ * ID" scheme (`com.googleusercontent.apps.<id>`), not to the app's own scheme.
+ * The OS only routes that back to us if the app declares it — an Android
+ * intent-filter or an iOS CFBundleURLScheme — so without this the consent
+ * screen succeeds and the redirect then lands nowhere.
+ *
+ * Returns null for an unset client ID so nothing bogus is registered.
+ */
+function reversedClientIdScheme(clientId) {
+  if (!clientId) {
+    return null;
+  }
+
+  const suffix = clientId.replace(/\.apps\.googleusercontent\.com$/, '');
+
+  return suffix ? `com.googleusercontent.apps.${suffix}` : null;
+}
+
+/**
+ * The app's own scheme plus a reversed-client-ID scheme for each configured
+ * Google client.
+ *
+ * Declared at the *top level* rather than under `ios`/`android`: Expo merges
+ * the top-level `scheme` into both platforms, and registering it on only one
+ * silently breaks the other (which is how Android ended up unable to receive
+ * its own redirect).
+ */
+function appSchemes(baseScheme, googleClientIds) {
+  const schemes = Array.isArray(baseScheme) ? [...baseScheme] : baseScheme ? [baseScheme] : [];
+
+  for (const clientId of googleClientIds) {
+    const scheme = reversedClientIdScheme(clientId);
+
+    if (scheme && !schemes.includes(scheme)) {
+      schemes.push(scheme);
+    }
+  }
+
+  return schemes;
+}
+
 module.exports = () => {
   const apiUrl = process.env.EXPO_PUBLIC_API_URL?.trim() || '';
   const chatUrl = process.env.EXPO_PUBLIC_CHAT_URL?.trim() || '';
   const mobileAppSecret = process.env.EXPO_PUBLIC_MOBILE_APP_SECRET?.trim() || '';
+  const googleIosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID?.trim() || '';
+  const googleAndroidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID?.trim() || '';
+  const googleWebClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID?.trim() || '';
   const apiHost = insecureApiHost(apiUrl);
 
   return {
     ...appJson.expo,
+    scheme: appSchemes(appJson.expo.scheme, [googleAndroidClientId, googleIosClientId]),
     extra: {
       ...appJson.expo.extra,
       apiUrl,
       chatUrl,
       mobileAppSecret,
+      googleIosClientId,
+      googleAndroidClientId,
+      googleWebClientId,
     },
     plugins: [
       ...(appJson.expo.plugins ?? []),
@@ -100,3 +149,9 @@ module.exports = () => {
     },
   };
 };
+
+// Exported for tests. A wrong scheme here breaks Google sign-in only on a real
+// device, after the consent screen has already succeeded, so it is worth
+// asserting rather than eyeballing.
+module.exports.appSchemes = appSchemes;
+module.exports.reversedClientIdScheme = reversedClientIdScheme;
