@@ -1,9 +1,15 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { Send, X } from 'lucide-react-native';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Mic, Send, Trash2, X } from 'lucide-react-native';
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { colors, radii, spacing, typography } from '@/theme';
+import { useVoiceRecorder, type VoiceRecording } from '@/hooks/useVoiceRecorder';
+import {
+  formatVoiceDuration,
+  isSendableRecording,
+  MAX_VOICE_DURATION_MS,
+} from '@/lib/chat/voiceMessage';
 import type { ChatMessageShape } from '@/types/chat';
 
 /**
@@ -29,6 +35,8 @@ type Props = {
   /** True when `replyTo` was written by the signed-in user. */
   replyToIsMine?: boolean;
   onCancelReply?: () => void;
+  /** Called with a finished recording. Omit to hide the microphone button. */
+  onSendVoice?: (recording: VoiceRecording) => void;
 };
 
 export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
@@ -41,11 +49,37 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   replyTo = null,
   replyToIsMine = false,
   onCancelReply,
+  onSendVoice,
 }: Props, ref) {
   const { t } = useTranslation();
   const [text, setText] = useState('');
 
   useImperativeHandle(ref, () => ({ setText }), []);
+
+  const submitRecording = (recording: VoiceRecording) => {
+    // A brush of the button, not a message — drop it quietly.
+    if (isSendableRecording(recording.durationMs)) onSendVoice?.(recording);
+  };
+
+  const recorder = useVoiceRecorder(submitRecording);
+
+  const handleStartRecording = async () => {
+    if (disabled || isSending) return;
+    onStoppedTyping?.();
+    try {
+      const started = await recorder.start();
+      if (!started) {
+        Alert.alert(t('mobile.chat.voice_permission_title'), t('mobile.chat.voice_permission_body'));
+      }
+    } catch {
+      Alert.alert(t('mobile.chat.voice_failed'));
+    }
+  };
+
+  const handleSendRecording = async () => {
+    const recording = await recorder.stop();
+    if (recording) submitRecording(recording);
+  };
 
   const handleChangeText = (value: string) => {
     setText(value);
@@ -63,6 +97,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
   };
 
   const canSend = text.trim().length > 0 && !isSending && !disabled;
+  const showMic = Boolean(onSendVoice) && text.trim().length === 0;
 
   return (
     <View style={styles.wrapper}>
@@ -88,34 +123,82 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput({
           </Pressable>
         </View>
       ) : null}
-      <View style={styles.container}>
-      <TextInput
-        style={styles.input}
-        value={text}
-        onChangeText={handleChangeText}
-        onBlur={onStoppedTyping}
-        placeholder={t('mobile.chat.type_message')}
-        placeholderTextColor={colors.inputPlaceholder}
-        multiline
-        maxLength={maxLength}
-        returnKeyType="send"
-        onSubmitEditing={handleSend}
-        editable={!disabled}
-        testID="chat-input"
-      />
-      <Pressable
-        onPress={handleSend}
-        disabled={!canSend}
-        style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
-        testID="chat-send-button"
-      >
-        {isSending ? (
-          <ActivityIndicator size="small" color={colors.white} />
+      {recorder.isRecording ? (
+        <View style={styles.container} testID="chat-recording-bar">
+          <Pressable
+            onPress={() => void recorder.cancel()}
+            hitSlop={8}
+            style={styles.iconButton}
+            accessibilityRole="button"
+            accessibilityLabel={t('mobile.chat.voice_cancel')}
+            testID="chat-voice-cancel"
+          >
+            <Trash2 size={20} color={colors.error} />
+          </Pressable>
+          <View style={styles.recordingInfo}>
+            <View style={styles.recordingDot} />
+            <Text style={styles.recordingTime} testID="chat-recording-time">
+              {formatVoiceDuration(recorder.durationMs)}
+            </Text>
+            <Text style={styles.recordingMax}>/ {formatVoiceDuration(MAX_VOICE_DURATION_MS)}</Text>
+          </View>
+          <Pressable
+            onPress={() => void handleSendRecording()}
+            style={styles.sendButton}
+            accessibilityRole="button"
+            accessibilityLabel={t('mobile.chat.voice_send')}
+            testID="chat-voice-send"
+          >
+            <Send size={18} color={colors.white} />
+          </Pressable>
+        </View>
+      ) : (
+        <View style={styles.container}>
+        <TextInput
+          style={styles.input}
+          value={text}
+          onChangeText={handleChangeText}
+          onBlur={onStoppedTyping}
+          placeholder={t('mobile.chat.type_message')}
+          placeholderTextColor={colors.inputPlaceholder}
+          multiline
+          maxLength={maxLength}
+          returnKeyType="send"
+          onSubmitEditing={handleSend}
+          editable={!disabled}
+          testID="chat-input"
+        />
+        {showMic ? (
+          <Pressable
+            onPress={() => void handleStartRecording()}
+            disabled={disabled || isSending}
+            style={[styles.sendButton, (disabled || isSending) && styles.sendButtonDisabled]}
+            accessibilityRole="button"
+            accessibilityLabel={t('mobile.chat.voice_record')}
+            testID="chat-mic-button"
+          >
+            {isSending ? (
+              <ActivityIndicator size="small" color={colors.white} />
+            ) : (
+              <Mic size={18} color={disabled ? colors.textDisabled : colors.white} />
+            )}
+          </Pressable>
         ) : (
-          <Send size={18} color={canSend ? colors.white : colors.textDisabled} />
+          <Pressable
+            onPress={handleSend}
+            disabled={!canSend}
+            style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
+            testID="chat-send-button"
+          >
+            {isSending ? (
+              <ActivityIndicator size="small" color={colors.white} />
+            ) : (
+              <Send size={18} color={canSend ? colors.white : colors.textDisabled} />
+            )}
+          </Pressable>
         )}
-      </Pressable>
-      </View>
+        </View>
+      )}
     </View>
   );
 });
@@ -182,6 +265,35 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  iconButton: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recordingInfo: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    minHeight: 40,
+  },
+  recordingDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.error,
+  },
+  recordingTime: {
+    ...typography.body,
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  recordingMax: {
+    ...typography.caption,
+    color: colors.textMuted,
   },
   sendButtonDisabled: {
     backgroundColor: colors.surface,
