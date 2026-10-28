@@ -19,6 +19,7 @@ import {
   type ChatClientSettings,
   type ChatMessageShape,
   type ChatReplySnapshot,
+  type ChatVoiceAudio,
 } from '@/types/chat';
 
 // ─── Socket.io event shapes ──────────────────────────────────────────────────
@@ -30,6 +31,8 @@ interface ServerToClientEvents {
     senderId: number;
     receiverId: number;
     text: string;
+    type?: 'text' | 'voice';
+    audio?: ChatVoiceAudio | null;
     replyTo?: ChatReplySnapshot | null;
     createdAt: Date;
     isRead: boolean;
@@ -113,6 +116,11 @@ type ChatSocketContextValue = {
   /** Fires when the socket re-establishes a connection after being dropped (not on the first connect). */
   subscribeReconnected: (handler: () => void) => () => void;
   refreshUnreadFromApi: () => Promise<void>;
+  /**
+   * The current chat JWT. Fetches a fresh one when none has been issued yet, or
+   * when `forceRefresh` is set (the cached one was rejected as expired).
+   */
+  getChatToken: (forceRefresh?: boolean) => Promise<string>;
 };
 
 const ChatSocketContext = createContext<ChatSocketContextValue | null>(null);
@@ -147,6 +155,9 @@ export function ChatSocketProvider({
   const [chatSettings, setChatSettings] = useState<ChatClientSettings>(CHAT_SETTINGS_DEFAULTS);
 
   const socketRef = useRef<ChatSocket | null>(null);
+  // Latest chat JWT, kept so REST calls to the chat server (voice upload and
+  // playback) can authenticate without another round-trip to Laravel.
+  const chatTokenRef = useRef<string | null>(null);
   const activeConversationIdRef = useRef<string | null>(null);
   const markReadRef = useRef<(id: string) => void>(() => {});
   const listenersRef = useRef<{
@@ -352,6 +363,7 @@ export function ChatSocketProvider({
           try {
             const session = await fetchChatSession();
             setChatSettings(session.settings);
+            chatTokenRef.current = session.token;
             socket.auth = { token: `Bearer ${session.token}` };
             socket.connect();
           } catch (err) {
@@ -368,6 +380,7 @@ export function ChatSocketProvider({
         // Refresh the chat JWT and reconnect
         const session = await fetchChatSession();
         setChatSettings(session.settings);
+        chatTokenRef.current = session.token;
         socket.auth = { token: `Bearer ${session.token}` };
         socket.connect();
       } catch {
@@ -430,6 +443,8 @@ export function ChatSocketProvider({
         senderId: msg.senderId,
         receiverId: msg.receiverId,
         text: msg.text,
+        type: msg.type ?? 'text',
+        audio: msg.audio ?? null,
         replyTo: msg.replyTo ?? null,
         createdAt: msg.createdAt,
         isRead: msg.isRead,
@@ -490,6 +505,7 @@ export function ChatSocketProvider({
           const session = await fetchChatSession();
           if (cancelled) return;
           setChatSettings(session.settings);
+          chatTokenRef.current = session.token;
           existing.auth = { token: `Bearer ${session.token}` };
           existing.connect();
         } catch (err) {
@@ -505,6 +521,7 @@ export function ChatSocketProvider({
         const session = await fetchChatSession();
         if (cancelled) return;
         setChatSettings(session.settings);
+        chatTokenRef.current = session.token;
 
         if (__DEV__) console.log('[chat] connecting to', CHAT_URL);
 
@@ -553,6 +570,13 @@ export function ChatSocketProvider({
     };
   }, [userId, attachListeners, refreshUnreadFromApi]);
 
+  const getChatToken = useCallback(async (forceRefresh = false) => {
+    if (chatTokenRef.current && !forceRefresh) return chatTokenRef.current;
+    const session = await fetchChatSession();
+    chatTokenRef.current = session.token;
+    return session.token;
+  }, []);
+
   const value = useMemo<ChatSocketContextValue>(
     () => ({
       connected,
@@ -573,6 +597,7 @@ export function ChatSocketProvider({
       subscribeConversationsRefresh,
       subscribeReconnected,
       refreshUnreadFromApi,
+      getChatToken,
     }),
     [
       connected,
@@ -593,6 +618,7 @@ export function ChatSocketProvider({
       subscribeConversationsRefresh,
       subscribeReconnected,
       refreshUnreadFromApi,
+      getChatToken,
     ],
   );
 

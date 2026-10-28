@@ -9,12 +9,22 @@ export type ChatReplySnapshot = {
   text: string;
 };
 
+/** Public metadata of a voice recording; the audio itself is fetched on demand. */
+export type ChatVoiceAudio = {
+  mimeType: string;
+  durationMs: number;
+  size: number;
+};
+
 export type ChatMessageShape = {
   _id: string;
   conversationId: string;
   senderId: number;
   receiverId: number;
   text: string;
+  /** Absent on messages from before voice support — treat as 'text'. */
+  type?: 'text' | 'voice';
+  audio?: ChatVoiceAudio | null;
   replyTo?: ChatReplySnapshot | null;
   isRead: boolean;
   createdAt: string | Date;

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { fetchMessages } from '@/services/chatApiService';
+import { fetchMessages, sendVoiceMessage } from '@/services/chatApiService';
 import { useChatSocket } from '@/contexts/ChatSocketContext';
 import type { ChatMessageShape } from '@/types/chat';
 
@@ -11,6 +11,10 @@ type UseChatThreadReturn = {
   isSending: boolean;
   sendError: string | null;
   sendMessage: (text: string, replyToId?: string | null) => Promise<void>;
+  sendVoice: (
+    recording: { uri: string; durationMs: number },
+    replyToId?: string | null,
+  ) => Promise<void>;
 };
 
 export function useChatThread(conversationId: string | null): UseChatThreadReturn {
@@ -26,6 +30,7 @@ export function useChatThread(conversationId: string | null): UseChatThreadRetur
     subscribeMessageNew,
     subscribeReconnected,
     sendMessage: socketSend,
+    getChatToken,
   } = useChatSocket();
 
   const mountedRef = useRef(true);
@@ -139,5 +144,43 @@ export function useChatThread(conversationId: string | null): UseChatThreadRetur
     [conversationId, socketSend],
   );
 
-  return { messages, isLoading, error, isSending, sendError, sendMessage };
+  const sendVoice = useCallback(
+    async (recording: { uri: string; durationMs: number }, replyToId?: string | null) => {
+      if (!conversationId) return;
+
+      setSendError(null);
+      setIsSending(true);
+
+      const upload = (chatToken: string) =>
+        sendVoiceMessage({
+          conversationId,
+          fileUri: recording.uri,
+          durationMs: recording.durationMs,
+          replyToId,
+          chatToken,
+        });
+
+      try {
+        let sent;
+        try {
+          sent = await upload(await getChatToken());
+        } catch (err) {
+          // The cached chat JWT may have expired since it was issued; get a
+          // fresh one and try once more before giving up.
+          if ((err as { status?: number })?.status !== 401) throw err;
+          sent = await upload(await getChatToken(true));
+        }
+
+        // The socket also delivers this message; dedupe by _id keeps one copy.
+        setMessages((prev) => (prev.some((m) => m._id === sent._id) ? prev : [...prev, sent]));
+      } catch {
+        setSendError('Failed to send');
+      } finally {
+        if (mountedRef.current) setIsSending(false);
+      }
+    },
+    [conversationId, getChatToken],
+  );
+
+  return { messages, isLoading, error, isSending, sendError, sendMessage, sendVoice };
 }

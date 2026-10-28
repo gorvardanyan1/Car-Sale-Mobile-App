@@ -1,4 +1,8 @@
+import { File } from 'expo-file-system';
+
+import { CHAT_URL } from '@/constants/chat';
 import { apiFetch } from '@/lib/api/client';
+import { VOICE_UPLOAD_CONTENT_TYPE } from '@/lib/chat/voiceMessage';
 import type { ApiResponse } from '@/types';
 import {
   CHAT_SETTINGS_DEFAULTS,
@@ -124,4 +128,50 @@ export async function deleteConversation(conversationId: string): Promise<void> 
     method: 'DELETE',
     auth: true,
   });
+}
+
+type SendVoiceParams = {
+  conversationId: string;
+  /** Local file URI of the finished recording. */
+  fileUri: string;
+  durationMs: number;
+  replyToId?: string | null;
+  chatToken: string;
+};
+
+/**
+ * Upload a recorded voice message to the chat server. Goes straight to the chat
+ * server (not Laravel) with the chat JWT — the same trust path as the socket —
+ * and the server broadcasts the resulting message over `message:new`.
+ */
+export async function sendVoiceMessage(params: SendVoiceParams): Promise<ChatMessageShape> {
+  const query = new URLSearchParams({
+    conversationId: params.conversationId,
+    durationMs: String(Math.round(params.durationMs)),
+  });
+  if (params.replyToId) query.set('replyToId', params.replyToId);
+
+  const body = await new File(params.fileUri).arrayBuffer();
+
+  const res = await fetch(`${CHAT_URL}/api/messages/voice?${query.toString()}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${params.chatToken}`,
+      'Content-Type': VOICE_UPLOAD_CONTENT_TYPE,
+    },
+    body,
+  });
+
+  if (!res.ok) {
+    let message = 'Failed to send voice message';
+    try {
+      const data = (await res.json()) as { message?: string };
+      if (data?.message) message = data.message;
+    } catch {
+      // Non-JSON error body — keep the generic message.
+    }
+    throw Object.assign(new Error(message), { status: res.status });
+  }
+
+  return (await res.json()) as ChatMessageShape;
 }

@@ -46,7 +46,13 @@
       "expo-localization",
       "expo-secure-store",
       "expo-status-bar",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "AutoHayq uses the microphone so you can send voice messages in chat."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

@@ -10,6 +10,7 @@ import {
   addDealerConversation,
   markConversationReadRest,
   deleteConversation,
+  sendVoiceMessage,
 } from '@/services/chatApiService';
 import type { ChatConversation, ChatMessageShape } from '@/types/chat';
 
@@ -17,6 +18,17 @@ vi.mock('@/lib/api/client', async () => {
   const actual = await vi.importActual<typeof import('@/lib/api/client')>('@/lib/api/client');
   return { ...actual, apiFetch: vi.fn() };
 });
+
+const RECORDING_BYTES = new Uint8Array([1, 2, 3, 4]).buffer;
+
+vi.mock('expo-file-system', () => ({
+  File: class {
+    constructor(public uri: string) {}
+    arrayBuffer() {
+      return Promise.resolve(RECORDING_BYTES);
+    }
+  },
+}));
 
 const mockApiFetch = vi.mocked(apiFetch);
 
@@ -192,6 +204,74 @@ describe('chatApiService', () => {
       expect(mockApiFetch).toHaveBeenCalledWith('/chat/conversations/conv-456', {
         method: 'DELETE',
         auth: true,
+      });
+    });
+  });
+
+  describe('sendVoiceMessage', () => {
+    const fetchMock = vi.fn();
+
+    beforeEach(() => {
+      vi.stubGlobal('fetch', fetchMock);
+      fetchMock.mockReset();
+    });
+
+    const params = {
+      conversationId: 'conv-1',
+      fileUri: 'file:///cache/rec.m4a',
+      durationMs: 4200.4,
+      chatToken: 'chat-jwt',
+    };
+
+    it('uploads the raw recording to the chat server with the chat JWT and returns the saved message', async () => {
+      const saved = { _id: 'm1', type: 'voice', audio: { mimeType: 'audio/mp4', durationMs: 4200, size: 4 } };
+      fetchMock.mockResolvedValue({ ok: true, status: 201, json: () => Promise.resolve(saved) });
+
+      const result = await sendVoiceMessage({ ...params, replyToId: 'quoted-1' });
+
+      expect(result).toEqual(saved);
+      const [url, init] = fetchMock.mock.calls[0];
+      const parsed = new URL(url as string);
+      expect(parsed.pathname).toBe('/api/messages/voice');
+      expect(parsed.searchParams.get('conversationId')).toBe('conv-1');
+      expect(parsed.searchParams.get('durationMs')).toBe('4200');
+      expect(parsed.searchParams.get('replyToId')).toBe('quoted-1');
+      expect(init.method).toBe('POST');
+      expect(init.headers).toEqual({ Authorization: 'Bearer chat-jwt', 'Content-Type': 'audio/mp4' });
+      expect(init.body).toBe(RECORDING_BYTES);
+    });
+
+    it('omits replyToId when the message is not a reply', async () => {
+      fetchMock.mockResolvedValue({ ok: true, status: 201, json: () => Promise.resolve({ _id: 'm1' }) });
+
+      await sendVoiceMessage(params);
+
+      expect(new URL(fetchMock.mock.calls[0][0] as string).searchParams.has('replyToId')).toBe(false);
+    });
+
+    it('throws the server message and exposes the status on failure', async () => {
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status: 413,
+        json: () => Promise.resolve({ message: 'Voice message is too large' }),
+      });
+
+      await expect(sendVoiceMessage(params)).rejects.toMatchObject({
+        message: 'Voice message is too large',
+        status: 413,
+      });
+    });
+
+    it('falls back to a generic message when the error body is not JSON', async () => {
+      fetchMock.mockResolvedValue({
+        ok: false,
+        status: 401,
+        json: () => Promise.reject(new Error('not json')),
+      });
+
+      await expect(sendVoiceMessage(params)).rejects.toMatchObject({
+        message: 'Failed to send voice message',
+        status: 401,
       });
     });
   });

@@ -15,6 +15,8 @@ import { MAX_DRAG_DISTANCE, REPLY_TRIGGER_DISTANCE } from '@/lib/chat/swipeToRep
 import type { ChatMessageShape } from '@/types/chat';
 import { ChatMessageTranslate } from './ChatMessageTranslate';
 import { ChatQuotedMessage } from './ChatQuotedMessage';
+import { ChatVoiceMessage } from './ChatVoiceMessage';
+import { isVoiceMessage } from '@/lib/chat/voiceMessage';
 
 type Props = {
   message: ChatMessageShape;
@@ -34,6 +36,7 @@ export function ChatMessageBubble({
   onJumpToMessage,
 }: Props) {
   const time = formatChatTime(message.createdAt);
+  const voiceAudio = isVoiceMessage(message) ? message.audio : null;
   const quotedIsMine =
     message.replyTo != null && Number(message.replyTo.senderId) === Number(currentUserId);
 
@@ -109,9 +112,17 @@ export function ChatMessageBubble({
           onJump={onJumpToMessage}
         />
       ) : null}
-      <Text style={[styles.text, isMine ? styles.textMine : styles.textTheirs]}>
-        {message.text}
-      </Text>
+      {voiceAudio ? (
+        <ChatVoiceMessage
+          messageId={message._id}
+          durationMs={voiceAudio.durationMs}
+          isMine={isMine}
+        />
+      ) : (
+        <Text style={[styles.text, isMine ? styles.textMine : styles.textTheirs]}>
+          {message.text}
+        </Text>
+      )}
       <Text style={[styles.time, isMine ? styles.timeMine : styles.timeTheirs]}>{time}</Text>
     </View>
   );
@@ -151,7 +162,7 @@ export function ChatMessageBubble({
       {/* Kept mounted once revealed, so hiding it again doesn't discard
           already-fetched translations and charge another AI call to get them
           back. `display: none` takes it out of layout entirely. */}
-      {hasRevealedTranslate ? (
+      {hasRevealedTranslate && !voiceAudio ? (
         <View style={isTranslateVisible ? styles.translateSlot : styles.hidden}>
           <ChatMessageTranslate text={message.text} align={isMine ? 'right' : 'left'} />
         </View>

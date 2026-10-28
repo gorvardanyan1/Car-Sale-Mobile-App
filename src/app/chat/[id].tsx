@@ -43,7 +43,7 @@ export default function ChatThreadScreen() {
     chatSettings,
   } = useChatSocket();
   const { conversations } = useConversations();
-  const { messages, isLoading, error, isSending, sendError, sendMessage } = useChatThread(
+  const { messages, isLoading, error, isSending, sendError, sendMessage, sendVoice } = useChatThread(
     id ?? null,
   );
   const { handleTextChange, stopTyping } = useTypingEmitter(id ?? null);
@@ -154,6 +154,12 @@ export default function ChatThreadScreen() {
     setReplyTo(null);
     setComposerIsEmpty(true);
     await sendMessage(text, pendingReplyTo?._id ?? null);
+  };
+
+  const handleSendVoice = async (recording: { uri: string; durationMs: number }) => {
+    const pendingReplyTo = activeReplyTo;
+    setReplyTo(null);
+    await sendVoice(recording, pendingReplyTo?._id ?? null);
   };
 
   const handleComposerChange = useCallback(
@@ -282,6 +288,7 @@ export default function ChatThreadScreen() {
         <ChatInput
           ref={composerRef}
           onSend={handleSend}
+          onSendVoice={handleSendVoice}
           isSending={isSending}
           disabled={!connected}
           onTextChange={handleComposerChange}
