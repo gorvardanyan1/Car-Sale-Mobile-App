@@ -11,6 +11,8 @@ import { FavoritesProvider } from '@/contexts/FavoritesContext';
 import { WantedSearchUnreadProvider } from '@/contexts/WantedSearchUnreadContext';
 import { PushNotificationsProvider } from '@/contexts/PushNotificationsProvider';
 import { ChatSocketProvider } from '@/contexts/ChatSocketContext';
+import { CallProvider } from '@/contexts/CallContext';
+import { CallReturnBar } from '@/components/call/CallReturnBar';
 import { colors } from '@/theme';
 
 WebBrowser.maybeCompleteAuthSession();
@@ -20,7 +22,7 @@ function AppWithChat({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
   return (
     <ChatSocketProvider userId={user?.id ?? null}>
-      {children}
+      <CallProvider userId={user?.id ?? null}>{children}</CallProvider>
     </ChatSocketProvider>
   );
 }
@@ -43,7 +45,12 @@ export default function RootLayout() {
                       <Stack.Screen name="dealers" />
                       <Stack.Screen name="settings" />
                       <Stack.Screen name="chat" />
+                      <Stack.Screen
+                        name="call"
+                        options={{ presentation: 'fullScreenModal', gestureEnabled: false, animation: 'fade' }}
+                      />
                     </Stack>
+                    <CallReturnBar />
                     <StatusBar style="light" />
                   </AuthGate>
                 </AppWithChat>

@@ -1,4 +1,5 @@
 import Constants from 'expo-constants';
+import { t } from 'i18next';
 import { Platform } from 'react-native';
 
 import { isRemotePushSupported } from '@/lib/notifications/isRemotePushSupported';
@@ -59,6 +60,16 @@ async function loadDeviceModule(): Promise<DeviceModule | null> {
  */
 export const CHAT_CHANNEL_ID = 'chat-messages';
 
+/**
+ * Incoming calls ring on their own channel: max importance, a long ring-like
+ * vibration, shown in full on the lock screen. Must match ANDROID_CHANNEL_ID /
+ * CATEGORY_ID in Laravel's IncomingCallNotification.
+ */
+export const CALL_CHANNEL_ID = 'chat-calls';
+export const CALL_CATEGORY_ID = 'incoming-call';
+export const CALL_ACTION_ACCEPT = 'call-accept';
+export const CALL_ACTION_DECLINE = 'call-decline';
+
 async function configureAndroidChannels(
   Notifications: NotificationsModule,
 ): Promise<void> {
@@ -74,6 +85,57 @@ async function configureAndroidChannels(
     lightColor: '#3B82F6',
     lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
   });
+
+  await Notifications.setNotificationChannelAsync(CALL_CHANNEL_ID, {
+    name: 'Calls',
+    importance: Notifications.AndroidImportance.MAX,
+    sound: 'default',
+    vibrationPattern: [0, 1000, 1000, 1000, 1000, 1000],
+    lightColor: '#16A34A',
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+  });
+}
+
+/**
+ * Answer / Decline buttons on the call notification. Answer opens the app
+ * straight into the call. Decline doesn't open it: when the app is still
+ * alive in the background it declines on the server; when it was killed,
+ * the call simply rings out (iOS/Android don't run JS for it).
+ */
+async function configureCallCategory(Notifications: NotificationsModule): Promise<void> {
+  await Notifications.setNotificationCategoryAsync(CALL_CATEGORY_ID, [
+    {
+      identifier: CALL_ACTION_DECLINE,
+      buttonTitle: t('mobile.call.decline'),
+      options: { isDestructive: true, opensAppToForeground: false },
+    },
+    {
+      identifier: CALL_ACTION_ACCEPT,
+      buttonTitle: t('mobile.call.accept'),
+      options: { opensAppToForeground: true },
+    },
+  ]);
+}
+
+/**
+ * Removes a call's ring from the notification tray once the call is over or
+ * being handled in the app — a stale "Incoming call" would otherwise sit
+ * there after the caller has hung up.
+ */
+export async function dismissCallNotifications(callId: string): Promise<void> {
+  const Notifications = await loadNotificationsModule();
+  if (!Notifications) return;
+
+  try {
+    const presented = await Notifications.getPresentedNotificationsAsync();
+    await Promise.all(
+      presented
+        .filter((n) => (n.request.content.data as Record<string, unknown> | undefined)?.call_id === callId)
+        .map((n) => Notifications.dismissNotificationAsync(n.request.identifier)),
+    );
+  } catch {
+    // Best effort.
+  }
 }
 
 export async function configureForegroundNotifications(): Promise<boolean> {
@@ -86,18 +148,31 @@ export async function configureForegroundNotifications(): Promise<boolean> {
   Notifications.setNotificationHandler({
     // `shouldShowAlert` is deprecated in expo-notifications 57 in favour of the
     // banner/list split below.
-    handleNotification: async () => ({
-      shouldPlaySound: true,
-      shouldSetBadge: true,
-      shouldShowBanner: true,
-      shouldShowList: true,
-    }),
+    handleNotification: async (notification) => {
+      // With the app open the call screen is already ringing over the socket;
+      // a banner on top of it would be a second, competing ring.
+      const isCall =
+        (notification.request.content.data as Record<string, unknown> | undefined)?.type === 'chat_call';
+
+      return {
+        shouldPlaySound: !isCall,
+        shouldSetBadge: !isCall,
+        shouldShowBanner: !isCall,
+        shouldShowList: !isCall,
+      };
+    },
   });
 
   try {
     await configureAndroidChannels(Notifications);
   } catch {
     // A channel failure must not stop the handler above from being installed.
+  }
+
+  try {
+    await configureCallCategory(Notifications);
+  } catch {
+    // Without the category the call push still arrives — just without buttons.
   }
 
   return true;
@@ -191,7 +266,7 @@ export type NotificationResponseSubscription = {
 };
 
 export async function addNotificationResponseListener(
-  onResponse: (data: Record<string, unknown>) => void,
+  onResponse: (data: Record<string, unknown>, actionIdentifier: string | null) => void,
 ): Promise<NotificationResponseSubscription | null> {
   const Notifications = await loadNotificationsModule();
 
@@ -200,7 +275,10 @@ export async function addNotificationResponseListener(
   }
 
   const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-    onResponse(response.notification.request.content.data as Record<string, unknown>);
+    onResponse(
+      response.notification.request.content.data as Record<string, unknown>,
+      response.actionIdentifier ?? null,
+    );
   });
 
   return subscription;
@@ -213,7 +291,10 @@ export async function addNotificationResponseListener(
  * without this, tapping a notification while the app is closed would open
  * the app but silently drop the deep link.
  */
-export async function getLaunchNotificationData(): Promise<Record<string, unknown> | null> {
+export async function getLaunchNotificationData(): Promise<{
+  data: Record<string, unknown>;
+  actionIdentifier: string | null;
+} | null> {
   const Notifications = await loadNotificationsModule();
 
   if (!Notifications) {
@@ -226,5 +307,8 @@ export async function getLaunchNotificationData(): Promise<Record<string, unknow
     return null;
   }
 
-  return response.notification.request.content.data as Record<string, unknown>;
+  return {
+    data: response.notification.request.content.data as Record<string, unknown>,
+    actionIdentifier: response.actionIdentifier ?? null,
+  };
 }
