@@ -25,6 +25,8 @@ import {
   callReducer,
   initialCallState,
   isCallBusy,
+  reconnectOutcome,
+  reconnectRequest,
   type CallOutcome,
   type CallPeer,
   type CallState,
@@ -84,6 +86,9 @@ export function CallProvider({ userId, children }: { userId: number | null; chil
   const [media, setMedia] = useState<CallMediaController | null>(null);
   const stateRef = useRef(state);
   const keyPairRef = useRef<CallKeyPair | null>(null);
+  // Proof that this device placed/answered the call — the only thing that lets
+  // it take the call back after a reconnect (call:resume).
+  const resumeTokenRef = useRef<string | null>(null);
   const mediaRef = useRef<CallMediaController | null>(null);
   const pathnameRef = useRef(pathname);
   // Async flows (await permission → check we're still 'outgoing') read the
@@ -105,6 +110,7 @@ export function CallProvider({ userId, children }: { userId: number | null; chil
     const current = mediaRef.current;
     mediaRef.current = null;
     keyPairRef.current = null;
+    resumeTokenRef.current = null;
     setMedia(null);
     setRemoteVideoTrack(null);
     if (current) {
@@ -216,6 +222,7 @@ export function CallProvider({ userId, children }: { userId: number | null; chil
         void emitCall('call:cancel', { callId });
         return;
       }
+      resumeTokenRef.current = typeof ack.resumeToken === 'string' ? ack.resumeToken : null;
       dispatch({ type: 'OUTGOING_RINGING', callId });
     },
     [callsEnabled, videoCallsEnabled, emitCall, finish, showCallScreen],
@@ -244,6 +251,7 @@ export function CallProvider({ userId, children }: { userId: number | null; chil
       finish(callId, { error: ack.error });
       return;
     }
+    resumeTokenRef.current = typeof ack.resumeToken === 'string' ? ack.resumeToken : null;
     await joinMedia(callId, ack);
   }, [emitCall, finish, joinMedia]);
 
@@ -341,8 +349,10 @@ export function CallProvider({ userId, children }: { userId: number | null; chil
     [subscribeCallEvents, receiveRing, joinMedia, emitCall, finish],
   );
 
-  // Every (re)connect: rebind a call in progress to the new socket, and send a
-  // Decline the user tapped on the notification while we were offline.
+  // Every (re)connect: move a call in progress to the new socket (call:resume,
+  // proven by this device's token — a call still ringing in has nothing to
+  // move, so it only checks the ring is live), and send a Decline the user
+  // tapped on the notification while we were offline.
   useEffect(() => {
     if (!connected) return;
 
@@ -352,15 +362,13 @@ export function CallProvider({ userId, children }: { userId: number | null; chil
       void emitCall('call:decline', { callId: pendingDecline });
     }
 
-    const { callId } = stateRef.current;
-    if (!callId || !isCallBusy(stateRef.current)) return;
-    void emitCall('call:sync', { callId }).then((ack) => {
-      const call = ack.call as { status?: string; endReason?: string } | undefined;
-      if (!ack.success || (call?.status && !['ringing', 'accepted'].includes(call.status))) {
-        finish(callId, { status: call?.status ?? 'failed', reason: call?.endReason ?? 'disconnected' });
-      } else if (stateRef.current.phase === 'incoming' && call?.status === 'accepted') {
-        finish(callId, { status: 'accepted', reason: 'answered_elsewhere' });
-      }
+    const { callId, phase } = stateRef.current;
+    const request = reconnectRequest(stateRef.current, resumeTokenRef.current);
+    if (!callId || !request) return;
+    void emitCall(request.event, request.payload).then((ack) => {
+      if (stateRef.current.callId !== callId) return;
+      const outcome = reconnectOutcome(phase, ack);
+      if (outcome) finish(callId, outcome);
     });
   }, [connected, emitCall, finish]);
 

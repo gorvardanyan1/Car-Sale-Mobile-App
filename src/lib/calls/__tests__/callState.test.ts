@@ -7,6 +7,8 @@ import {
   initialCallState,
   isCallBusy,
   outcomeMessageKey,
+  reconnectOutcome,
+  reconnectRequest,
   type CallAction,
   type CallState,
 } from '@/lib/calls/callState';
@@ -95,5 +97,49 @@ describe('call status text', () => {
   it('formats durations', () => {
     expect(formatCallDuration(59)).toBe('0:59');
     expect(formatCallDuration(3725)).toBe('1:02:05');
+  });
+});
+
+describe('reconnecting mid-call', () => {
+  const active: CallState = {
+    ...run({ type: 'OUTGOING_START', conversationId: 'c1', callType: 'voice', peer }),
+    phase: 'active',
+    callId: 'k1',
+    startedAt: 1,
+  };
+
+  it('takes the call back with this device’s resume token', () => {
+    expect(reconnectRequest(active, 'tok')).toEqual({
+      event: 'call:resume',
+      payload: { callId: 'k1', resumeToken: 'tok' },
+    });
+  });
+
+  it('only reads the state of a ring still waiting for an answer, or without a token', () => {
+    const ringing = run({ type: 'INCOMING', callId: 'k2', conversationId: 'c1', callType: 'voice' });
+    expect(reconnectRequest(ringing, 'tok')).toEqual({ event: 'call:sync', payload: { callId: 'k2' } });
+    expect(reconnectRequest(active, null)).toEqual({ event: 'call:sync', payload: { callId: 'k1' } });
+  });
+
+  it('sends nothing when no call is in progress', () => {
+    expect(reconnectRequest(initialCallState, 'tok')).toBeNull();
+    expect(reconnectRequest({ ...active, phase: 'ended' }, 'tok')).toBeNull();
+  });
+
+  it('carries on when the call is still live', () => {
+    expect(reconnectOutcome('active', { success: true, call: { status: 'accepted' } })).toBeNull();
+    expect(reconnectOutcome('incoming', { success: true, call: { status: 'ringing' } })).toBeNull();
+  });
+
+  it('ends the call when it is over, owned by another device, or answered elsewhere', () => {
+    expect(reconnectOutcome('active', { success: true, call: { status: 'ended', endReason: 'peer_left' } })).toEqual({
+      status: 'ended',
+      reason: 'peer_left',
+    });
+    expect(reconnectOutcome('active', { success: false })).toEqual({ status: 'failed', reason: 'disconnected' });
+    expect(reconnectOutcome('incoming', { success: true, call: { status: 'accepted' } })).toEqual({
+      status: 'accepted',
+      reason: 'answered_elsewhere',
+    });
   });
 });

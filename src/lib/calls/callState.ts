@@ -215,3 +215,39 @@ export function callStatusText(state: CallState, seconds: number, t: (key: strin
   if (state.phase === 'connecting') return t('mobile.call.connecting');
   return formatCallDuration(seconds);
 }
+
+/**
+ * What to send after the chat socket reconnects mid-call. The device that
+ * placed/answered the call proves it with its resume token and takes the
+ * call back (call:resume). A ring still waiting for an answer — or a device
+ * without a token — can only check the call is still live (call:sync).
+ */
+export function reconnectRequest(
+  state: CallState,
+  resumeToken: string | null,
+): { event: 'call:sync' | 'call:resume'; payload: Record<string, unknown> } | null {
+  if (!state.callId || !isCallBusy(state)) return null;
+  if (state.phase === 'incoming' || !resumeToken) {
+    return { event: 'call:sync', payload: { callId: state.callId } };
+  }
+  return { event: 'call:resume', payload: { callId: state.callId, resumeToken } };
+}
+
+/**
+ * How the reconnect answer affects the call: null = carry on, otherwise the
+ * outcome to end it with (it ended while we were away, it was answered on
+ * another device, or this device can no longer resume it).
+ */
+export function reconnectOutcome(
+  phase: CallPhase,
+  ack: { success: boolean; call?: unknown },
+): CallOutcome | null {
+  const call = ack.call as { status?: string; endReason?: string } | undefined;
+  if (!ack.success || (call?.status && !['ringing', 'accepted'].includes(call.status))) {
+    return { status: call?.status ?? 'failed', reason: call?.endReason ?? 'disconnected' };
+  }
+  if (phase === 'incoming' && call?.status === 'accepted') {
+    return { status: 'accepted', reason: 'answered_elsewhere' };
+  }
+  return null;
+}

@@ -51,7 +51,8 @@ export type CallClientEvent =
   | 'call:decline'
   | 'call:cancel'
   | 'call:hangup'
-  | 'call:sync';
+  | 'call:sync'
+  | 'call:resume';
 
 /** Every call event acks `{ success, error? }` plus event-specific fields. */
 export type CallAck = { success: boolean; error?: string } & Record<string, unknown>;
@@ -115,6 +116,7 @@ interface ClientToServerEvents {
   'call:cancel': (payload: Record<string, unknown>, cb: (ack: CallAck) => void) => void;
   'call:hangup': (payload: Record<string, unknown>, cb: (ack: CallAck) => void) => void;
   'call:sync': (payload: Record<string, unknown>, cb: (ack: CallAck) => void) => void;
+  'call:resume': (payload: Record<string, unknown>, cb: (ack: CallAck) => void) => void;
 }
 
 type ChatSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
