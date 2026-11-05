@@ -18,6 +18,9 @@ import { ChatInput, type ChatInputHandle } from '@/components/chat/ChatInput';
 import { ChatMessageBubble } from '@/components/chat/ChatMessageBubble';
 import { ChatReplySuggestion } from '@/components/chat/ChatReplySuggestion';
 import { ChatTypingIndicator } from '@/components/chat/ChatTypingIndicator';
+import { ChatCallHistoryRow } from '@/components/chat/ChatCallHistoryRow';
+import { CallHeaderButtons } from '@/components/call/CallHeaderButtons';
+import { isCallMessage } from '@/lib/calls/callHistory';
 import { useConversations } from '@/hooks/useConversations';
 import { useChatThread } from '@/hooks/useChatThread';
 import { useTypingEmitter } from '@/hooks/useTypingEmitter';
@@ -225,6 +228,14 @@ export default function ChatThreadScreen() {
             )}
           </View>
         </View>
+        <CallHeaderButtons
+          conversationId={id ?? null}
+          peer={{
+            title: display?.title ?? t('mobile.chat.conversation'),
+            imageUrl: display?.imageUrl ?? null,
+            initials: display?.initials ?? '?',
+          }}
+        />
       </View>
 
       <KeyboardAvoidingView
@@ -245,15 +256,22 @@ export default function ChatThreadScreen() {
             ref={flatListRef}
             data={messages}
             keyExtractor={(item) => item._id}
-            renderItem={({ item }) => (
-              <ChatMessageBubble
-                message={item}
-                isMine={Number(item.senderId) === Number(user?.id)}
-                currentUserId={user?.id}
-                onReply={handleReply}
-                onJumpToMessage={handleJumpToMessage}
-              />
-            )}
+            renderItem={({ item }) =>
+              isCallMessage(item) ? (
+                <ChatCallHistoryRow
+                  message={item}
+                  isCaller={Number(item.senderId) === Number(user?.id)}
+                />
+              ) : (
+                <ChatMessageBubble
+                  message={item}
+                  isMine={Number(item.senderId) === Number(user?.id)}
+                  currentUserId={user?.id}
+                  onReply={handleReply}
+                  onJumpToMessage={handleJumpToMessage}
+                />
+              )
+            }
             contentContainerStyle={styles.messageList}
             showsVerticalScrollIndicator={false}
             ListFooterComponent={

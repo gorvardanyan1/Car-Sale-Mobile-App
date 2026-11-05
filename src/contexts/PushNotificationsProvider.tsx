@@ -5,7 +5,10 @@ import { AppState } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { isRemotePushSupported } from '@/lib/notifications/isRemotePushSupported';
 import { parsePushNotificationData } from '@/lib/notifications/pushNotificationData';
+import { callActionFromResponse, publishCallPushEvent } from '@/lib/calls/callPushEvents';
 import {
+  CALL_ACTION_ACCEPT,
+  CALL_ACTION_DECLINE,
   addNotificationResponseListener,
   configureForegroundNotifications,
   getLaunchNotificationData,
@@ -20,7 +23,21 @@ import {
 function navigateFromPushData(
   router: ReturnType<typeof useRouter>,
   data: ReturnType<typeof parsePushNotificationData>,
+  actionIdentifier: string | null = null,
 ): void {
+  // Calls are handed to CallProvider, which owns the socket: it checks the
+  // call is still ringing before showing anything, and declines without
+  // opening a screen.
+  if (data.type === 'chat_call' && data.call_id) {
+    publishCallPushEvent({
+      callId: data.call_id,
+      conversationId: data.conversation_id ?? null,
+      callType: data.call_type ?? 'voice',
+      action: callActionFromResponse(actionIdentifier, CALL_ACTION_ACCEPT, CALL_ACTION_DECLINE),
+    });
+    return;
+  }
+
   if (data.type === 'wanted_search_match') {
     if (data.announcement_id != null) {
       router.push({
@@ -118,15 +135,15 @@ export function PushNotificationsProvider({ children }: { children: ReactNode })
     void (async () => {
       // A tap that cold-starts the app happens before this listener exists
       // to catch it — check for the response that launched the app first.
-      const launchData = await getLaunchNotificationData();
+      const launch = await getLaunchNotificationData();
 
-      if (!cancelled && launchData) {
-        navigateFromPushData(router, parsePushNotificationData(launchData));
+      if (!cancelled && launch) {
+        navigateFromPushData(router, parsePushNotificationData(launch.data), launch.actionIdentifier);
       }
 
-      const subscription = await addNotificationResponseListener((rawData) => {
+      const subscription = await addNotificationResponseListener((rawData, actionIdentifier) => {
         const data = parsePushNotificationData(rawData);
-        navigateFromPushData(router, data);
+        navigateFromPushData(router, data, actionIdentifier);
       });
 
       if (cancelled) {

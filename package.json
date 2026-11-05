@@ -16,6 +16,11 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@config-plugins/react-native-webrtc": "^15.0.2",
+    "@livekit/react-native": "^3.1.0",
+    "@livekit/react-native-expo-plugin": "^1.1.0",
+    "@livekit/react-native-webrtc": "^150.1.1",
+    "@noble/curves": "^2.4.0",
     "@noble/hashes": "^2.2.0",
     "@react-navigation/bottom-tabs": "^7.18.3",
     "expo": "~57.0.11",
@@ -23,6 +28,7 @@
     "expo-build-properties": "~57.0.9",
     "expo-clipboard": "~57.0.1",
     "expo-constants": "~57.0.5",
+    "expo-crypto": "~57.0.4",
     "expo-device": "~57.0.1",
     "expo-image-manipulator": "~57.0.8",
     "expo-image-picker": "~57.0.8",
@@ -36,6 +42,7 @@
     "expo-status-bar": "~57.0.1",
     "expo-web-browser": "~57.0.2",
     "i18next": "^26.3.3",
+    "livekit-client": "^2.23.0",
     "lucide-react-native": "^1.21.0",
     "react": "19.2.3",
     "react-i18next": "^17.0.8",

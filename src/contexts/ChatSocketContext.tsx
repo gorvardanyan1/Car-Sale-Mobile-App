@@ -16,6 +16,7 @@ import { buildSendMessagePayload } from '@/lib/chat/messagePayload';
 import { fetchChatSession, fetchUnreadSummary } from '@/services/chatApiService';
 import {
   CHAT_SETTINGS_DEFAULTS,
+  type ChatCallSummary,
   type ChatClientSettings,
   type ChatMessageShape,
   type ChatReplySnapshot,
@@ -24,6 +25,37 @@ import {
 
 // ─── Socket.io event shapes ──────────────────────────────────────────────────
 
+/** Server → client call events (car-shop-chat-app socket/calls.ts). */
+export type CallServerEvents = {
+  'call:incoming': {
+    callId: string;
+    conversationId: string;
+    callerId: number;
+    type: 'voice' | 'video';
+    callerPublicKey: string | null;
+    expiresAt: string;
+  };
+  'call:accepted': {
+    callId: string;
+    livekitUrl: string;
+    token: string;
+    e2ee: boolean;
+    peerPublicKey: string | null;
+  };
+  'call:ended': { callId: string; status: string; reason: string; durationSec: number };
+};
+
+export type CallClientEvent =
+  | 'call:invite'
+  | 'call:accept'
+  | 'call:decline'
+  | 'call:cancel'
+  | 'call:hangup'
+  | 'call:sync';
+
+/** Every call event acks `{ success, error? }` plus event-specific fields. */
+export type CallAck = { success: boolean; error?: string } & Record<string, unknown>;
+
 interface ServerToClientEvents {
   'message:new': (payload: {
     conversationId: string;
@@ -31,12 +63,16 @@ interface ServerToClientEvents {
     senderId: number;
     receiverId: number;
     text: string;
-    type?: 'text' | 'voice';
+    type?: 'text' | 'voice' | 'call';
     audio?: ChatVoiceAudio | null;
+    call?: ChatCallSummary | null;
     replyTo?: ChatReplySnapshot | null;
     createdAt: Date;
     isRead: boolean;
   }) => void;
+  'call:incoming': (payload: CallServerEvents['call:incoming']) => void;
+  'call:accepted': (payload: CallServerEvents['call:accepted']) => void;
+  'call:ended': (payload: CallServerEvents['call:ended']) => void;
   'presence:update': (payload: { userId: number; online: boolean }) => void;
   'unread:total': (payload: { totalUnread: number }) => void;
   'unread:conversation': (payload: { conversationId: string; unreadCount: number }) => void;
@@ -73,6 +109,12 @@ interface ClientToServerEvents {
   ) => void;
   'typing:start': (payload: { conversationId: string }) => void;
   'typing:stop': (payload: { conversationId: string }) => void;
+  'call:invite': (payload: Record<string, unknown>, cb: (ack: CallAck) => void) => void;
+  'call:accept': (payload: Record<string, unknown>, cb: (ack: CallAck) => void) => void;
+  'call:decline': (payload: Record<string, unknown>, cb: (ack: CallAck) => void) => void;
+  'call:cancel': (payload: Record<string, unknown>, cb: (ack: CallAck) => void) => void;
+  'call:hangup': (payload: Record<string, unknown>, cb: (ack: CallAck) => void) => void;
+  'call:sync': (payload: Record<string, unknown>, cb: (ack: CallAck) => void) => void;
 }
 
 type ChatSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -80,6 +122,10 @@ type ChatSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 // ─── Context value ────────────────────────────────────────────────────────────
 
 export type MessageNewPayload = ChatMessageShape & { conversationId: string };
+
+export type CallEventHandlers = {
+  [K in keyof CallServerEvents]?: (payload: CallServerEvents[K]) => void;
+};
 
 type ChatSocketContextValue = {
   connected: boolean;
@@ -115,6 +161,10 @@ type ChatSocketContextValue = {
   subscribeConversationsRefresh: (handler: () => void) => () => void;
   /** Fires when the socket re-establishes a connection after being dropped (not on the first connect). */
   subscribeReconnected: (handler: () => void) => () => void;
+  /** call:incoming / call:accepted / call:ended, for CallProvider. */
+  subscribeCallEvents: (handlers: CallEventHandlers) => () => void;
+  /** Emit a call:* event and resolve with its ack (or a timeout/offline error). */
+  emitCall: (event: CallClientEvent, payload: Record<string, unknown>) => Promise<CallAck>;
   refreshUnreadFromApi: () => Promise<void>;
   /**
    * The current chat JWT. Fetches a fresh one when none has been issued yet, or
@@ -164,7 +214,8 @@ export function ChatSocketProvider({
     messageNew: Set<(msg: MessageNewPayload) => void>;
     conversationsRefresh: Set<() => void>;
     reconnected: Set<() => void>;
-  }>({ messageNew: new Set(), conversationsRefresh: new Set(), reconnected: new Set() });
+    call: Set<CallEventHandlers>;
+  }>({ messageNew: new Set(), conversationsRefresh: new Set(), reconnected: new Set(), call: new Set() });
   const userIdRef = useRef(userId);
   userIdRef.current = userId;
   // True once the socket has connected at least once — distinguishes a fresh
@@ -200,6 +251,30 @@ export function ChatSocketProvider({
       listenersRef.current.reconnected.delete(handler);
     };
   }, []);
+
+  const subscribeCallEvents = useCallback((handlers: CallEventHandlers) => {
+    listenersRef.current.call.add(handlers);
+    return () => {
+      listenersRef.current.call.delete(handlers);
+    };
+  }, []);
+
+  const emitCall = useCallback(
+    (event: CallClientEvent, payload: Record<string, unknown>) =>
+      new Promise<CallAck>((resolve) => {
+        const socket = socketRef.current;
+        if (!socket?.connected) {
+          resolve({ success: false, error: 'Not connected' });
+          return;
+        }
+        const timer = setTimeout(() => resolve({ success: false, error: 'Timeout' }), 8000);
+        socket.emit(event, payload, (ack) => {
+          clearTimeout(timer);
+          resolve(ack ?? { success: false, error: 'No response' });
+        });
+      }),
+    [],
+  );
 
   // Coalesce concurrent callers (mount, app-foreground, reconnect can all
   // fire close together) into a single in-flight fetch — the API rejects
@@ -436,6 +511,16 @@ export function ChatSocketProvider({
       }
     });
 
+    socket.on('call:incoming', (payload) => {
+      listenersRef.current.call.forEach((h) => h['call:incoming']?.(payload));
+    });
+    socket.on('call:accepted', (payload) => {
+      listenersRef.current.call.forEach((h) => h['call:accepted']?.(payload));
+    });
+    socket.on('call:ended', (payload) => {
+      listenersRef.current.call.forEach((h) => h['call:ended']?.(payload));
+    });
+
     socket.on('message:new', (msg) => {
       const typedMsg: MessageNewPayload = {
         _id: msg._id,
@@ -445,6 +530,7 @@ export function ChatSocketProvider({
         text: msg.text,
         type: msg.type ?? 'text',
         audio: msg.audio ?? null,
+        call: msg.call ?? null,
         replyTo: msg.replyTo ?? null,
         createdAt: msg.createdAt,
         isRead: msg.isRead,
@@ -598,6 +684,8 @@ export function ChatSocketProvider({
       subscribeReconnected,
       refreshUnreadFromApi,
       getChatToken,
+      subscribeCallEvents,
+      emitCall,
     }),
     [
       connected,
@@ -619,6 +707,8 @@ export function ChatSocketProvider({
       subscribeReconnected,
       refreshUnreadFromApi,
       getChatToken,
+      subscribeCallEvents,
+      emitCall,
     ],
   );
 

@@ -16,6 +16,14 @@ export type ChatVoiceAudio = {
   size: number;
 };
 
+/** Structured record behind a 'call' system message (see car-shop-chat-app). */
+export type ChatCallSummary = {
+  callId: string;
+  callType: 'voice' | 'video';
+  status: 'declined' | 'missed' | 'ended' | 'failed';
+  durationSec: number;
+};
+
 export type ChatMessageShape = {
   _id: string;
   conversationId: string;
@@ -23,8 +31,9 @@ export type ChatMessageShape = {
   receiverId: number;
   text: string;
   /** Absent on messages from before voice support — treat as 'text'. */
-  type?: 'text' | 'voice';
+  type?: 'text' | 'voice' | 'call';
   audio?: ChatVoiceAudio | null;
+  call?: ChatCallSummary | null;
   replyTo?: ChatReplySnapshot | null;
   isRead: boolean;
   createdAt: string | Date;
@@ -92,6 +101,8 @@ export type ChatClientSettings = {
   emojiPickerEnabled: boolean;
   typingIndicatorEnabled: boolean;
   presenceEnabled: boolean;
+  callsEnabled: boolean;
+  videoCallsEnabled: boolean;
   messageMaxLength: number;
 };
 
@@ -104,6 +115,10 @@ export const CHAT_SETTINGS_DEFAULTS: ChatClientSettings = {
   emojiPickerEnabled: true,
   typingIndicatorEnabled: true,
   presenceEnabled: true,
+  // Unlike the flags above, calls stay off when an older backend omits them:
+  // they need a media server the backend may not have.
+  callsEnabled: false,
+  videoCallsEnabled: false,
   messageMaxLength: 4000,
 };
 
